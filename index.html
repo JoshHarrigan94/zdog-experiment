@@ -2,598 +2,558 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pen y Fan — Zdog Diorama</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Summit Pebble</title>
+
   <script src="https://unpkg.com/zdog@1/dist/zdog.dist.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
   <style>
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      min-height: 100vh;
+      height: 100vh;
       overflow: hidden;
-      font-family: ui-rounded, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at 25% 15%, #fff2cf 0 12%, transparent 35%),
-        radial-gradient(circle at 80% 20%, #d6ecff 0 12%, transparent 35%),
-        linear-gradient(180deg, #eaf6ff 0%, #f8f1dc 48%, #dbe7c8 100%);
-      color: #263323;
+        radial-gradient(circle at 30% 20%, #fff2c7 0 12%, transparent 34%),
+        radial-gradient(circle at 75% 18%, #d9efff 0 10%, transparent 32%),
+        linear-gradient(180deg, #eaf7ff 0%, #f9f1dd 48%, #d9e6c7 100%);
+      color: #24301f;
     }
 
     header {
       position: fixed;
+      top: 16px;
+      left: 16px;
       z-index: 10;
-      top: 18px;
-      left: 18px;
-      max-width: 320px;
       padding: 14px 16px;
       border-radius: 22px;
-      background: rgba(255,255,255,0.62);
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 50px rgba(39, 57, 43, 0.16);
+      background: rgba(255,255,255,0.65);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 44px rgba(36,48,31,0.14);
     }
 
     h1 {
       margin: 0;
       font-size: 1.2rem;
-      letter-spacing: -0.045em;
+      letter-spacing: -0.05em;
     }
 
-    p {
-      margin: 6px 0 0;
+    .meta {
+      margin-top: 5px;
       font-size: 0.82rem;
-      line-height: 1.35;
       opacity: 0.72;
-    }
-
-    .badge {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 10;
-      padding: 10px 14px;
-      border-radius: 999px;
-      background: rgba(38, 51, 35, 0.84);
-      color: white;
-      font-size: 0.78rem;
-      box-shadow: 0 16px 36px rgba(0,0,0,0.18);
     }
 
     canvas {
       width: 100vw;
       height: 100vh;
       display: block;
-      cursor: grab;
       touch-action: none;
+      cursor: crosshair;
     }
 
-    canvas:active { cursor: grabbing; }
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+      padding: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.62);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 44px rgba(36,48,31,0.15);
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 15px;
+      font-weight: 800;
+      color: white;
+      background: #24301f;
+    }
+
+    button:active { transform: scale(0.96); }
+
+    .hint {
+      position: fixed;
+      right: 16px;
+      top: 16px;
+      z-index: 10;
+      max-width: 220px;
+      text-align: right;
+      font-size: 0.8rem;
+      opacity: 0.62;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 640px) {
+      .hint { display: none; }
+      .controls {
+        width: calc(100vw - 24px);
+        justify-content: space-between;
+      }
+      button { flex: 1; font-size: 0.8rem; padding: 11px 8px; }
+    }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>Pen y Fan</h1>
-    <p>A static Zdog mountain diorama: summit plateau, cairn, trig point, ridgelines, paths, mist and tiny hikers.</p>
+    <h1>Summit Pebble</h1>
+    <div class="meta">
+      Score: <strong id="score">0</strong> · Pebbles: <strong id="count">0</strong>
+    </div>
   </header>
 
-  <div class="badge">Drag to rotate</div>
+  <div class="hint">Tap to drop pebbles. Drag them. Turn wind on for soft ambience.</div>
 
   <canvas class="zdog-canvas"></canvas>
 
+  <div class="controls">
+    <button id="dropBtn">Drop</button>
+    <button id="windBtn">Wind Off</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+
   <script>
-    const TAU = Zdog.TAU;
     const canvas = document.querySelector(".zdog-canvas");
+    const scoreEl = document.getElementById("score");
+    const countEl = document.getElementById("count");
+    const dropBtn = document.getElementById("dropBtn");
+    const windBtn = document.getElementById("windBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const TAU = Zdog.TAU;
+    const Engine = Matter.Engine;
+    const World = Matter.World;
+    const Bodies = Matter.Bodies;
+    const Body = Matter.Body;
+    const Constraint = Matter.Constraint;
+    const Events = Matter.Events;
+    const Mouse = Matter.Mouse;
+    const MouseConstraint = Matter.MouseConstraint;
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let score = 0;
+    let pebbles = [];
+    let soundReady = false;
+    let windOn = false;
+
+    const engine = Engine.create();
+    engine.gravity.y = 0.72;
 
     const illo = new Zdog.Illustration({
       element: canvas,
-      dragRotate: true,
-      rotate: { x: -0.42, y: -0.38, z: 0 },
+      dragRotate: false,
+      rotate: { x: -0.28, y: -0.25 },
       zoom: 1
     });
 
     const scene = new Zdog.Anchor({ addTo: illo });
+    const pebbleLayer = new Zdog.Anchor({ addTo: illo });
 
-    function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = window.innerWidth + "px";
-      canvas.style.height = window.innerHeight + "px";
-      illo.zoom = Math.min(window.innerWidth, window.innerHeight) / 480;
-      illo.updateRenderGraph();
+    function makeSynths() {
+      window.tapSynth = new Tone.MembraneSynth({
+        pitchDecay: 0.02,
+        octaves: 2,
+        envelope: { attack: 0.001, decay: 0.18, sustain: 0.01, release: 0.08 }
+      }).toDestination();
+
+      window.chimeSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.01, decay: 0.18, sustain: 0.04, release: 0.5 }
+      }).toDestination();
+
+      window.wind = new Tone.Noise("pink").start();
+      window.windFilter = new Tone.Filter(520, "lowpass").toDestination();
+      window.windGain = new Tone.Gain(0).toDestination();
+      window.wind.connect(window.windFilter);
+      window.windFilter.connect(window.windGain);
     }
 
-    window.addEventListener("resize", resize);
-
-    function shape(opts) {
-      return new Zdog.Shape(opts);
+    async function readySound() {
+      if (soundReady) return;
+      await Tone.start();
+      makeSynths();
+      soundReady = true;
     }
 
-    function ellipse(opts) {
-      return new Zdog.Ellipse(opts);
+    function playTap(power = 1) {
+      if (!soundReady) return;
+      const notes = ["C3", "E3", "G3", "A3", "C4"];
+      const note = notes[Math.floor(Math.random() * notes.length)];
+      tapSynth.triggerAttackRelease(note, "16n", undefined, Math.min(0.9, 0.18 + power * 0.22));
     }
 
-    function roundedRect(opts) {
-      return new Zdog.RoundedRect(opts);
+    function playChime() {
+      if (!soundReady) return;
+      chimeSynth.triggerAttackRelease(["C4", "E4", "G4"], "16n", undefined, 0.14);
     }
 
-    function cone(opts) {
-      return new Zdog.Cone(opts);
+    function toggleWind() {
+      readySound();
+      windOn = !windOn;
+      windBtn.textContent = windOn ? "Wind On" : "Wind Off";
+      if (soundReady) {
+        windGain.gain.rampTo(windOn ? 0.035 : 0, 0.5);
+      }
     }
 
-    function cylinder(opts) {
-      return new Zdog.Cylinder(opts);
-    }
+    function zShape(opts) { return new Zdog.Shape(opts); }
+    function zEllipse(opts) { return new Zdog.Ellipse(opts); }
+    function zCone(opts) { return new Zdog.Cone(opts); }
+    function zCylinder(opts) { return new Zdog.Cylinder(opts); }
+    function zBox(opts) { return new Zdog.Box(opts); }
 
-    function hemisphere(opts) {
-      return new Zdog.Hemisphere(opts);
-    }
-
-    function addRidge(path, color, stroke, z, yShift = 0) {
-      return shape({
+    function mountainLayer(path, color, stroke, z, y) {
+      zShape({
         addTo: scene,
         path,
         closed: true,
         stroke,
-        color,
         fill: true,
-        translate: { z, y: yShift }
-      });
-    }
-
-    function addPath(points, color = "#e9d7a6", stroke = 8, z = 60) {
-      return shape({
-        addTo: scene,
-        path: points,
-        closed: false,
-        stroke,
         color,
-        translate: { z }
+        translate: { z, y }
       });
     }
 
-    function addStone(x, y, z, size = 7, color = "#8a887d") {
-      return hemisphere({
+    function drawMountain() {
+      mountainLayer([
+        { x: -250, y: 110 }, { x: -190, y: 58 }, { x: -120, y: 18 },
+        { x: -40, y: -12 }, { x: 28, y: -20 }, { x: 108, y: 12 },
+        { x: 188, y: 62 }, { x: 250, y: 110 }
+      ], "#9eaa65", 35, -38, 35);
+
+      mountainLayer([
+        { x: -230, y: 130 }, { x: -170, y: 82 }, { x: -95, y: 48 },
+        { x: -25, y: 30 }, { x: 48, y: 36 }, { x: 125, y: 66 },
+        { x: 220, y: 130 }
+      ], "#6f8748", 34, 4, 62);
+
+      mountainLayer([
+        { x: -150, y: 76 }, { x: -92, y: 18 }, { x: -35, y: -38 },
+        { x: 20, y: -55 }, { x: 78, y: -26 }, { x: 125, y: 54 },
+        { x: 82, y: 80 }, { x: -72, y: 82 }
+      ], "#c5bb72", 25, 52, 20);
+
+      mountainLayer([
+        { x: -80, y: 20 }, { x: -35, y: -58 }, { x: 15, y: -94 },
+        { x: 64, y: -50 }, { x: 92, y: 22 }, { x: 40, y: 48 },
+        { x: -36, y: 45 }
+      ], "#d4ca7b", 20, 90, 0);
+
+      zShape({
         addTo: scene,
-        diameter: size,
+        path: [
+          { x: -165, y: 128 }, { x: -120, y: 90 }, { x: -72, y: 55 },
+          { x: -28, y: 18 }, { x: 2, y: -25 }, { x: 16, y: -78 }
+        ],
+        stroke: 7,
+        color: "#eadca7",
+        translate: { z: 128 }
+      });
+
+      zShape({
+        addTo: scene,
+        path: [
+          { x: 145, y: 124 }, { x: 104, y: 90 }, { x: 72, y: 56 },
+          { x: 45, y: 18 }, { x: 20, y: -30 }, { x: 16, y: -78 }
+        ],
+        stroke: 6,
+        color: "#deca8e",
+        translate: { z: 132 }
+      });
+
+      zCylinder({
+        addTo: scene,
+        diameter: 24,
+        length: 44,
         stroke: false,
-        color,
-        backface: "#6f6f66",
-        translate: { x, y, z },
-        rotate: { x: -TAU / 4 }
+        color: "#e6e0d0",
+        backface: "#aaa394",
+        translate: { x: 16, y: -105, z: 150 },
+        rotate: { x: TAU / 4 }
       });
-    }
 
-    function addGrassTuft(x, y, z, scale = 1, color = "#556b35") {
-      shape({
+      for (let i = 0; i < 28; i++) {
+        const a = Math.random() * TAU;
+        const r = 12 + Math.random() * 34;
+        zEllipse({
+          addTo: scene,
+          diameter: 5 + Math.random() * 7,
+          stroke: 4,
+          color: i % 2 ? "#77776d" : "#918d82",
+          translate: {
+            x: 16 + Math.cos(a) * r,
+            y: -88 + Math.sin(a) * r * 0.32,
+            z: 142 + Math.random() * 14
+          },
+          rotate: { x: TAU / 4 }
+        });
+      }
+
+      zBox({
+        addTo: scene,
+        width: 540,
+        height: 28,
+        depth: 300,
+        stroke: false,
+        color: "#9a704c",
+        leftFace: "#745137",
+        rightFace: "#8a6040",
+        topFace: "#b68a5d",
+        bottomFace: "#5d402b",
+        translate: { y: 170, z: 28 }
+      });
+
+      zShape({
         addTo: scene,
         path: [
-          { x: 0, y: 0 },
-          { x: -5 * scale, y: -10 * scale }
+          { x: -230, y: 72 }, { x: -150, y: 68 }, { x: -70, y: 74 },
+          { x: 20, y: 66 }, { x: 105, y: 74 }, { x: 220, y: 70 }
         ],
-        stroke: 2.5 * scale,
-        color,
-        translate: { x, y, z }
-      });
-      shape({
-        addTo: scene,
-        path: [
-          { x: 0, y: 0 },
-          { x: 2 * scale, y: -12 * scale }
-        ],
-        stroke: 2.5 * scale,
-        color,
-        translate: { x, y, z }
-      });
-      shape({
-        addTo: scene,
-        path: [
-          { x: 0, y: 0 },
-          { x: 7 * scale, y: -8 * scale }
-        ],
-        stroke: 2.5 * scale,
-        color,
-        translate: { x, y, z }
-      });
-    }
-
-    function addCloud(x, y, z, s = 1) {
-      const cloud = new Zdog.Anchor({
-        addTo: scene,
-        translate: { x, y, z }
+        stroke: 16,
+        color: "rgba(255,255,255,0.34)",
+        translate: { z: 170 }
       });
 
-      ellipse({
-        addTo: cloud,
-        diameter: 45 * s,
-        stroke: 22 * s,
-        color: "rgba(255,255,255,0.82)",
-        fill: true
-      });
-
-      ellipse({
-        addTo: cloud,
-        diameter: 35 * s,
-        stroke: 18 * s,
+      zEllipse({
+        addTo: scene,
+        diameter: 60,
+        stroke: 22,
         color: "rgba(255,255,255,0.75)",
         fill: true,
-        translate: { x: -28 * s, y: 4 * s }
+        translate: { x: -155, y: -142, z: 35 }
       });
 
-      ellipse({
-        addTo: cloud,
-        diameter: 40 * s,
-        stroke: 18 * s,
-        color: "rgba(255,255,255,0.72)",
+      zEllipse({
+        addTo: scene,
+        diameter: 48,
+        stroke: 18,
+        color: "rgba(255,255,255,0.66)",
         fill: true,
-        translate: { x: 30 * s, y: 5 * s }
+        translate: { x: -195, y: -134, z: 35 }
       });
 
-      return cloud;
+      zEllipse({
+        addTo: scene,
+        diameter: 52,
+        stroke: 18,
+        color: "rgba(255,255,255,0.62)",
+        fill: true,
+        translate: { x: 160, y: -130, z: 20 }
+      });
     }
 
-    function addHiker(x, y, z, shirt = "#d94f38") {
-      const h = new Zdog.Anchor({
-        addTo: scene,
-        translate: { x, y, z }
+    drawMountain();
+
+    let ground, leftWall, rightWall, summitSensor;
+
+    function makeWorldBounds() {
+      World.clear(engine.world, false);
+
+      ground = Bodies.rectangle(width / 2, height - 60, width * 1.2, 40, {
+        isStatic: true,
+        restitution: 0.45,
+        friction: 0.45
       });
 
-      shape({
-        addTo: h,
-        path: [{ y: -16 }, { y: 2 }],
-        stroke: 8,
-        color: shirt
+      leftWall = Bodies.rectangle(-30, height / 2, 60, height, { isStatic: true });
+      rightWall = Bodies.rectangle(width + 30, height / 2, 60, height, { isStatic: true });
+
+      const slopeA = Bodies.rectangle(width * 0.36, height * 0.66, 260, 24, {
+        isStatic: true,
+        angle: -0.38,
+        restitution: 0.35,
+        friction: 0.18
       });
 
-      ellipse({
-        addTo: h,
-        diameter: 9,
-        stroke: 5,
-        color: "#d8a77b",
-        translate: { y: -24 }
+      const slopeB = Bodies.rectangle(width * 0.64, height * 0.66, 260, 24, {
+        isStatic: true,
+        angle: 0.38,
+        restitution: 0.35,
+        friction: 0.18
       });
 
-      shape({
-        addTo: h,
-        path: [{ x: -3, y: 3 }, { x: -9, y: 16 }],
-        stroke: 3,
-        color: "#263323"
+      summitSensor = Bodies.rectangle(width / 2, height * 0.39, 110, 34, {
+        isStatic: true,
+        isSensor: true,
+        label: "summit"
       });
 
-      shape({
-        addTo: h,
-        path: [{ x: 3, y: 3 }, { x: 8, y: 16 }],
-        stroke: 3,
-        color: "#263323"
+      World.add(engine.world, [ground, leftWall, rightWall, slopeA, slopeB, summitSensor]);
+
+      const mouse = Mouse.create(canvas);
+      const mouseConstraint = MouseConstraint.create(engine, {
+        mouse,
+        constraint: {
+          stiffness: 0.16,
+          render: { visible: false }
+        }
       });
 
-      shape({
-        addTo: h,
-        path: [{ x: 8, y: -8 }, { x: 18, y: 13 }],
+      World.add(engine.world, mouseConstraint);
+    }
+
+    function screenToWorld(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+
+    function createPebble(x = width / 2, y = 90) {
+      readySound();
+
+      const radius = 11 + Math.random() * 9;
+      const body = Bodies.circle(x, y, radius, {
+        restitution: 0.62,
+        friction: 0.22,
+        frictionAir: 0.006,
+        density: 0.002,
+        label: "pebble"
+      });
+
+      const colors = ["#796f61", "#8e8678", "#696d62", "#a08870", "#5f6258"];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      const zdog = zEllipse({
+        addTo: pebbleLayer,
+        diameter: radius * 2,
+        stroke: radius * 0.65,
+        color,
+        fill: true,
+        translate: { x: 0, y: 0, z: 190 },
+        rotate: { x: TAU / 4 }
+      });
+
+      const shine = zEllipse({
+        addTo: zdog,
+        diameter: radius * 0.45,
         stroke: 2,
-        color: "#4d3d2c"
+        color: "rgba(255,255,255,0.35)",
+        fill: true,
+        translate: { x: -radius * 0.32, y: -radius * 0.36, z: 6 }
       });
 
-      return h;
+      pebbles.push({ body, zdog, shine, scored: false, radius });
+      World.add(engine.world, body);
+
+      countEl.textContent = pebbles.length;
+      playChime();
     }
 
-    function addLabel(text, x, y, z, w = 120) {
-      const a = new Zdog.Anchor({
-        addTo: scene,
-        translate: { x, y, z }
+    function reset() {
+      pebbles.forEach(p => {
+        World.remove(engine.world, p.body);
+        p.zdog.remove();
+      });
+      pebbles = [];
+      score = 0;
+      scoreEl.textContent = score;
+      countEl.textContent = 0;
+      playChime();
+    }
+
+    Events.on(engine, "collisionStart", event => {
+      event.pairs.forEach(pair => {
+        const a = pair.bodyA;
+        const b = pair.bodyB;
+
+        const pebble = a.label === "pebble" ? a : b.label === "pebble" ? b : null;
+        const other = pebble === a ? b : a;
+
+        if (!pebble) return;
+
+        const speed = Math.hypot(pebble.velocity.x, pebble.velocity.y);
+        if (speed > 2.2) playTap(Math.min(speed / 8, 1));
+
+        if (other.label === "summit") {
+          const p = pebbles.find(item => item.body === pebble);
+          if (p && !p.scored) {
+            p.scored = true;
+            score++;
+            scoreEl.textContent = score;
+            playChime();
+          }
+        }
+      });
+    });
+
+    dropBtn.onclick = () => createPebble(width / 2 + (Math.random() - 0.5) * 100, 80);
+    windBtn.onclick = toggleWind;
+    resetBtn.onclick = reset;
+
+    canvas.addEventListener("pointerdown", e => {
+      const p = screenToWorld(e);
+      const hit = pebbles.some(item => {
+        const dx = item.body.position.x - p.x;
+        const dy = item.body.position.y - p.y;
+        return Math.sqrt(dx * dx + dy * dy) < item.radius * 2.4;
       });
 
-      roundedRect({
-        addTo: a,
-        width: w,
-        height: 30,
-        cornerRadius: 10,
-        stroke: 5,
-        color: "#263323",
-        fill: true
+      if (!hit) createPebble(p.x, p.y);
+    });
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+
+      illo.zoom = Math.min(width, height) / 500;
+      makeWorldBounds();
+    }
+
+    window.addEventListener("resize", resize);
+
+    function updatePebbles() {
+      pebbles.forEach(p => {
+        const x = p.body.position.x - width / 2;
+        const y = p.body.position.y - height / 2;
+
+        p.zdog.translate.x = x;
+        p.zdog.translate.y = y;
+        p.zdog.translate.z = 210;
+        p.zdog.rotate.z = p.body.angle;
+        p.zdog.rotate.x = TAU / 4 + p.body.angle * 0.25;
+
+        if (p.body.position.y > height + 120) {
+          Body.setPosition(p.body, {
+            x: width / 2 + (Math.random() - 0.5) * 180,
+            y: 40
+          });
+          Body.setVelocity(p.body, { x: 0, y: 0 });
+          p.scored = false;
+        }
       });
-
-      const letters = text.toUpperCase().split("");
-      let start = -((letters.length - 1) * 8) / 2;
-
-      letters.forEach((char, i) => {
-        if (char === " ") return;
-
-        shape({
-          addTo: a,
-          path: [
-            { x: start + i * 8, y: -5 },
-            { x: start + i * 8, y: 5 }
-          ],
-          stroke: 2,
-          color: "#f8f1dc",
-          translate: { z: 4 }
-        });
-      });
-
-      return a;
     }
 
-    addRidge([
-      { x: -230, y: 120 },
-      { x: -210, y: 70 },
-      { x: -165, y: 32 },
-      { x: -120, y: 2 },
-      { x: -70, y: -20 },
-      { x: -20, y: -34 },
-      { x: 30, y: -31 },
-      { x: 82, y: -10 },
-      { x: 132, y: 23 },
-      { x: 178, y: 66 },
-      { x: 230, y: 120 }
-    ], "#9baa69", 34, -28);
-
-    addRidge([
-      { x: -210, y: 128 },
-      { x: -165, y: 76 },
-      { x: -115, y: 48 },
-      { x: -58, y: 31 },
-      { x: 10, y: 24 },
-      { x: 76, y: 37 },
-      { x: 134, y: 70 },
-      { x: 208, y: 128 }
-    ], "#6f8647", 32, 8, 20);
-
-    addRidge([
-      { x: -190, y: 145 },
-      { x: -145, y: 105 },
-      { x: -95, y: 83 },
-      { x: -36, y: 75 },
-      { x: 24, y: 78 },
-      { x: 85, y: 92 },
-      { x: 145, y: 116 },
-      { x: 190, y: 145 }
-    ], "#506d3c", 38, 48, 48);
-
-    addRidge([
-      { x: -110, y: 34 },
-      { x: -70, y: -30 },
-      { x: -20, y: -65 },
-      { x: 35, y: -62 },
-      { x: 82, y: -25 },
-      { x: 117, y: 34 },
-      { x: 72, y: 58 },
-      { x: -55, y: 58 }
-    ], "#b7b06d", 26, 42, -10);
-
-    addRidge([
-      { x: -86, y: 36 },
-      { x: -44, y: -48 },
-      { x: 6, y: -92 },
-      { x: 54, y: -45 },
-      { x: 88, y: 36 },
-      { x: 42, y: 57 },
-      { x: -42, y: 57 }
-    ], "#c6bd72", 22, 70, -26);
-
-    addRidge([
-      { x: -50, y: -42 },
-      { x: -16, y: -82 },
-      { x: 25, y: -83 },
-      { x: 62, y: -42 },
-      { x: 28, y: -25 },
-      { x: -22, y: -25 }
-    ], "#d2c778", 16, 94, -34);
-
-    addRidge([
-      { x: -185, y: 58 },
-      { x: -140, y: 30 },
-      { x: -105, y: 22 },
-      { x: -72, y: 30 },
-      { x: -50, y: 56 },
-      { x: -92, y: 82 },
-      { x: -150, y: 86 }
-    ], "#819352", 16, 88, 6);
-
-    addRidge([
-      { x: 78, y: 38 },
-      { x: 120, y: 26 },
-      { x: 172, y: 50 },
-      { x: 198, y: 92 },
-      { x: 136, y: 91 },
-      { x: 92, y: 67 }
-    ], "#7b8d4e", 16, 82, 8);
-
-    addPath([
-      { x: -185, y: 118 },
-      { x: -143, y: 92 },
-      { x: -92, y: 62 },
-      { x: -48, y: 30 },
-      { x: -12, y: -10 },
-      { x: 10, y: -48 },
-      { x: 18, y: -75 }
-    ], "#eadba4", 7, 118);
-
-    addPath([
-      { x: 145, y: 112 },
-      { x: 112, y: 86 },
-      { x: 84, y: 56 },
-      { x: 58, y: 20 },
-      { x: 38, y: -20 },
-      { x: 18, y: -75 }
-    ], "#dec98b", 6, 122);
-
-    addPath([
-      { x: -22, y: -72 },
-      { x: 0, y: -86 },
-      { x: 28, y: -82 },
-      { x: 50, y: -64 }
-    ], "#eee2ad", 7, 130);
-
-    cylinder({
-      addTo: scene,
-      diameter: 28,
-      length: 44,
-      stroke: false,
-      color: "#e9e4d1",
-      backface: "#bab4a4",
-      translate: { x: 12, y: -100, z: 150 },
-      rotate: { x: TAU / 4 }
-    });
-
-    cylinder({
-      addTo: scene,
-      diameter: 20,
-      length: 10,
-      stroke: false,
-      color: "#cfc8b8",
-      backface: "#aaa394",
-      translate: { x: 12, y: -122, z: 150 },
-      rotate: { x: TAU / 4 }
-    });
-
-    for (let i = 0; i < 42; i++) {
-      const angle = i * 0.72;
-      const radius = 16 + Math.random() * 34;
-      addStone(
-        12 + Math.cos(angle) * radius,
-        -91 + Math.sin(angle) * radius * 0.35,
-        142 + Math.random() * 16,
-        5 + Math.random() * 8,
-        i % 3 === 0 ? "#77786e" : "#969184"
-      );
+    function loop() {
+      Engine.update(engine, 1000 / 60);
+      updatePebbles();
+      illo.updateRenderGraph();
+      requestAnimationFrame(loop);
     }
-
-    addLabel("PEN Y FAN", 13, -165, 132, 118);
-
-    for (let i = 0; i < 85; i++) {
-      const x = -205 + Math.random() * 410;
-      const y = 10 + Math.random() * 130;
-      const z = 62 + Math.random() * 50;
-      addGrassTuft(x, y, z, 0.55 + Math.random() * 0.55, i % 2 ? "#4f6638" : "#65793d");
-    }
-
-    for (let i = 0; i < 55; i++) {
-      const x = -210 + Math.random() * 420;
-      const y = 55 + Math.random() * 95;
-      const z = 80 + Math.random() * 65;
-      addStone(x, y, z, 4 + Math.random() * 5, i % 2 ? "#75786d" : "#8d8c7f");
-    }
-
-    shape({
-      addTo: scene,
-      path: [
-        { x: -145, y: 12 },
-        { x: -110, y: 74 },
-        { x: -76, y: 116 }
-      ],
-      stroke: 4,
-      color: "rgba(63,84,55,0.28)",
-      translate: { z: 138 }
-    });
-
-    shape({
-      addTo: scene,
-      path: [
-        { x: 85, y: 8 },
-        { x: 115, y: 62 },
-        { x: 158, y: 110 }
-      ],
-      stroke: 4,
-      color: "rgba(63,84,55,0.25)",
-      translate: { z: 138 }
-    });
-
-    shape({
-      addTo: scene,
-      path: [
-        { x: -38, y: -20 },
-        { x: -52, y: 44 },
-        { x: -58, y: 98 }
-      ],
-      stroke: 3,
-      color: "rgba(55,74,48,0.26)",
-      translate: { z: 142 }
-    });
-
-    shape({
-      addTo: scene,
-      path: [
-        { x: 42, y: -24 },
-        { x: 52, y: 34 },
-        { x: 70, y: 100 }
-      ],
-      stroke: 3,
-      color: "rgba(55,74,48,0.24)",
-      translate: { z: 142 }
-    });
-
-    addCloud(-150, -155, 30, 0.7);
-    addCloud(145, -132, 55, 0.55);
-    addCloud(0, -185, -20, 0.42);
-
-    shape({
-      addTo: scene,
-      path: [
-        { x: -230, y: 82 },
-        { x: -160, y: 74 },
-        { x: -90, y: 76 },
-        { x: -20, y: 70 },
-        { x: 60, y: 74 },
-        { x: 130, y: 70 },
-        { x: 220, y: 78 }
-      ],
-      stroke: 18,
-      color: "rgba(255,255,255,0.34)",
-      translate: { z: 165 }
-    });
-
-    shape({
-      addTo: scene,
-      path: [
-        { x: -210, y: 30 },
-        { x: -130, y: 25 },
-        { x: -70, y: 28 },
-        { x: -10, y: 24 },
-        { x: 70, y: 30 },
-        { x: 155, y: 25 }
-      ],
-      stroke: 10,
-      color: "rgba(255,255,255,0.24)",
-      translate: { z: 170 }
-    });
-
-    addHiker(-80, 64, 155, "#d95e40");
-    addHiker(-62, 56, 158, "#265f9c");
-    addHiker(70, 70, 154, "#e3a72f");
-
-    const base = new Zdog.Box({
-      addTo: scene,
-      width: 500,
-      height: 22,
-      depth: 280,
-      stroke: false,
-      color: "#9a704c",
-      leftFace: "#7c5638",
-      rightFace: "#8c6240",
-      topFace: "#b68a5d",
-      bottomFace: "#5f3f2a",
-      translate: { y: 166, z: 26 },
-      rotate: { x: 0 }
-    });
-
-    roundedRect({
-      addTo: scene,
-      width: 210,
-      height: 42,
-      cornerRadius: 16,
-      stroke: 6,
-      color: "#2d3326",
-      fill: true,
-      translate: { x: 0, y: 180, z: 180 }
-    });
-
-    addLabel("BRECON BEACONS", 0, 180, 190, 170);
 
     resize();
-    illo.updateRenderGraph();
+    createPebble(width / 2 - 35, 80);
+    createPebble(width / 2 + 35, 50);
+    loop();
   </script>
 </body>
 </html>
