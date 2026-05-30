@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Raisin Desk Toy</title>
+
+  <script src="https://unpkg.com/zdog@1/dist/zdog.dist.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 30% 20%, #ffe8d6 0%, transparent 34%),
+        radial-gradient(circle at 70% 80%, #d8f3dc 0%, transparent 34%),
+        linear-gradient(135deg, #fffaf3, #f3efe6);
+      color: #2d2a26;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      z-index: 10;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      letter-spacing: -0.04em;
+    }
+
+    .status {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      opacity: 0.75;
+    }
+
+    canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+      padding: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.58);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 48px rgba(60, 40, 20, 0.16);
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 16px;
+      font-weight: 700;
+      background: #2d2a26;
+      color: white;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.14);
+    }
+
+    button:active {
+      transform: scale(0.96);
+    }
+
+    .hint {
+      position: fixed;
+      right: 18px;
+      top: 18px;
+      max-width: 190px;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      opacity: 0.65;
+      text-align: right;
+    }
+
+    @media (max-width: 640px) {
+      .controls {
+        width: calc(100vw - 22px);
+        justify-content: space-between;
+        bottom: 14px;
+      }
+
+      button {
+        flex: 1;
+        padding: 11px 8px;
+        font-size: 0.8rem;
+      }
+
+      .hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Raisin</h1>
+    <div class="status">
+      Mood: <strong id="mood">calm</strong> · Pets: <strong id="pets">0</strong>
+    </div>
+  </header>
+
+  <div class="hint">
+    Tap Raisin to pet her. Double tap for zoomies. Press and hold to make her sleepy.
+  </div>
+
+  <canvas class="zdog-canvas"></canvas>
+
+  <div class="controls">
+    <button id="sitBtn">Sit</button>
+    <button id="napBtn">Nap</button>
+    <button id="zoomBtn">Zoomies</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+
+  <script>
+    const moodEl = document.getElementById("mood");
+    const petsEl = document.getElementById("pets");
+    const canvas = document.querySelector(".zdog-canvas");
+
+    let mood = "calm";
+    let pets = 0;
+    let action = "idle";
+    let lastTap = 0;
+    let pressTimer = null;
+    let lastInteraction = Date.now();
+    let burst = 0;
+    let hearts = [];
+
+    const TAU = Zdog.TAU;
+
+    const illo = new Zdog.Illustration({
+      element: canvas,
+      dragRotate: true,
+      rotate: { x: -0.2, y: 0.2 }
+    });
+
+    const shadow = new Zdog.Ellipse({
+      addTo: illo,
+      diameter: 230,
+      quarters: 2,
+      translate: { y: 118, z: -20 },
+      rotate: { x: TAU / 4 },
+      stroke: 24,
+      color: "rgba(0,0,0,0.08)",
+      fill: true
+    });
+
+    const dog = new Zdog.Anchor({ addTo: illo });
+
+    const body = new Zdog.RoundedRect({
+      addTo: dog,
+      width: 165,
+      height: 90,
+      cornerRadius: 42,
+      stroke: 38,
+      color: "#6b3f2a",
+      fill: true,
+      translate: { y: 40 }
+    });
+
+    const chest = new Zdog.Shape({
+      addTo: dog,
+      path: [{ x: -42, y: 20 }, { x: -52, y: 70 }],
+      stroke: 34,
+      color: "#f1d3b2",
+      translate: { z: 22 }
+    });
+
+    const headAnchor = new Zdog.Anchor({
+      addTo: dog,
+      translate: { x: -78, y: -28, z: 14 }
+    });
+
+    const head = new Zdog.Ellipse({
+      addTo: headAnchor,
+      diameter: 86,
+      stroke: 42,
+      color: "#7b4931",
+      fill: true
+    });
+
+    const muzzle = new Zdog.Ellipse({
+      addTo: headAnchor,
+      diameter: 48,
+      stroke: 22,
+      color: "#e8c3a0",
+      translate: { x: -22, y: 18, z: 28 },
+      fill: true
+    });
+
+    const nose = new Zdog.Shape({
+      addTo: headAnchor,
+      path: [{ x: -43, y: 13 }],
+      stroke: 12,
+      color: "#211b18",
+      translate: { z: 48 }
+    });
+
+    const leftEye = new Zdog.Shape({
+      addTo: headAnchor,
+      path: [{ x: -22, y: -10 }],
+      stroke: 8,
+      color: "#211b18",
+      translate: { z: 44 }
+    });
+
+    const rightEye = leftEye.copy({
+      translate: { x: 10, y: -10, z: 44 }
+    });
+
+    const leftEar = new Zdog.Ellipse({
+      addTo: headAnchor,
+      diameter: 58,
+      stroke: 24,
+      color: "#4b2b1d",
+      translate: { x: -15, y: 18, z: -12 },
+      rotate: { z: 0.22 },
+      fill: true
+    });
+
+    const rightEar = leftEar.copy({
+      translate: { x: 34, y: 18, z: -12 },
+      rotate: { z: -0.22 }
+    });
+
+    const tailAnchor = new Zdog.Anchor({
+      addTo: dog,
+      translate: { x: 92, y: 10, z: 0 }
+    });
+
+    const tail = new Zdog.Shape({
+      addTo: tailAnchor,
+      path: [
+        { x: 0, y: 0 },
+        { x: 36, y: -32 },
+        { x: 56, y: -10 }
+      ],
+      closed: false,
+      stroke: 18,
+      color: "#4b2b1d"
+    });
+
+    function leg(x, z) {
+      return new Zdog.Shape({
+        addTo: dog,
+        path: [{ y: 0 }, { y: 55 }],
+        stroke: 24,
+        color: "#5a3423",
+        translate: { x, y: 70, z }
+      });
+    }
+
+    leg(-50, 28);
+    leg(42, 28);
+    leg(-44, -24);
+    leg(50, -24);
+
+    const badge = new Zdog.RoundedRect({
+      addTo: dog,
+      width: 58,
+      height: 24,
+      cornerRadius: 10,
+      stroke: 5,
+      color: "#ffcf56",
+      fill: true,
+      translate: { x: -8, y: -24, z: 46 }
+    });
+
+    const heartLayer = new Zdog.Anchor({ addTo: illo });
+
+    function setMood(next) {
+      mood = next;
+      moodEl.textContent = mood;
+      lastInteraction = Date.now();
+    }
+
+    function addHeart() {
+      const h = new Zdog.Shape({
+        addTo: heartLayer,
+        path: [
+          { x: 0, y: 0 },
+          { x: -8, y: -8 },
+          { x: -16, y: 0 },
+          { x: 0, y: 18 },
+          { x: 16, y: 0 },
+          { x: 8, y: -8 },
+          { x: 0, y: 0 }
+        ],
+        closed: true,
+        stroke: 4,
+        color: "#ff6b8a",
+        fill: true,
+        translate: {
+          x: -80 + Math.random() * 80,
+          y: -70,
+          z: 80
+        }
+      });
+
+      hearts.push({
+        shape: h,
+        life: 1,
+        drift: -0.4 + Math.random() * 0.8
+      });
+    }
+
+    function pet() {
+      pets++;
+      petsEl.textContent = pets;
+      setMood("happy");
+      burst = 1;
+      action = "happy";
+      addHeart();
+    }
+
+    function zoomies() {
+      setMood("excited");
+      burst = 2.5;
+      action = "zoomies";
+      for (let i = 0; i < 4; i++) addHeart();
+    }
+
+    function sit() {
+      setMood("calm");
+      action = "sit";
+    }
+
+    function nap() {
+      setMood("sleepy");
+      action = "nap";
+    }
+
+    function reset() {
+      setMood("calm");
+      action = "idle";
+      burst = 0;
+      dog.translate.set({ x: 0, y: 0, z: 0 });
+      dog.rotate.set({ x: 0, y: 0, z: 0 });
+    }
+
+    document.getElementById("sitBtn").onclick = sit;
+    document.getElementById("napBtn").onclick = nap;
+    document.getElementById("zoomBtn").onclick = zoomies;
+    document.getElementById("resetBtn").onclick = reset;
+
+    canvas.addEventListener("pointerdown", () => {
+      pressTimer = setTimeout(() => {
+        nap();
+      }, 650);
+    });
+
+    canvas.addEventListener("pointerup", () => {
+      clearTimeout(pressTimer);
+
+      const now = Date.now();
+      if (now - lastTap < 280) {
+        zoomies();
+      } else {
+        pet();
+      }
+      lastTap = now;
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 0.5;
+      const y = (e.clientY / window.innerHeight - 0.5) * 0.35;
+      headAnchor.rotate.y = x;
+      headAnchor.rotate.x = -y;
+    });
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+      illo.zoom = Math.min(window.innerWidth, window.innerHeight) / 380;
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function animate() {
+      const t = Date.now() * 0.001;
+
+      if (Date.now() - lastInteraction > 12000 && mood !== "sleepy") {
+        setMood("sleepy");
+        action = "nap";
+      }
+
+      const breathe = Math.sin(t * 2) * 3;
+      const wagSpeed = mood === "excited" ? 18 : mood === "happy" ? 11 : 5;
+      const wagAmount = mood === "sleepy" ? 0.08 : mood === "excited" ? 0.75 : 0.38;
+
+      dog.translate.y = breathe;
+
+      tailAnchor.rotate.z = Math.sin(t * wagSpeed) * wagAmount;
+      leftEar.rotate.z = 0.22 + Math.sin(t * 3.2) * 0.04;
+      rightEar.rotate.z = -0.22 - Math.sin(t * 3.2) * 0.04;
+
+      const blink = Math.sin(t * 2.8) > 0.96;
+      leftEye.stroke = blink || mood === "sleepy" ? 2 : 8;
+      rightEye.stroke = blink || mood === "sleepy" ? 2 : 8;
+
+      if (action === "happy") {
+        dog.translate.y += Math.sin(t * 18) * 8 * burst;
+        dog.rotate.z = Math.sin(t * 12) * 0.08 * burst;
+        burst *= 0.96;
+        if (burst < 0.05) action = "idle";
+      }
+
+      if (action === "zoomies") {
+        dog.translate.x = Math.sin(t * 13) * 42;
+        dog.rotate.z = Math.sin(t * 16) * 0.18;
+        dog.translate.y += Math.abs(Math.sin(t * 18)) * 12;
+        burst *= 0.985;
+        if (burst < 0.25) {
+          dog.translate.x = 0;
+          action = "idle";
+          setMood("happy");
+        }
+      }
+
+      if (action === "sit") {
+        dog.rotate.z = 0;
+        dog.translate.y = 18 + breathe;
+        headAnchor.rotate.z = Math.sin(t * 2) * 0.08;
+      }
+
+      if (action === "nap") {
+        dog.rotate.z = -0.18;
+        dog.translate.y = 44 + Math.sin(t * 1.2) * 2;
+        headAnchor.rotate.z = -0.3;
+        tailAnchor.rotate.z = 0.04;
+      } else {
+        headAnchor.rotate.z += Math.sin(t * 1.4) * 0.002;
+      }
+
+      hearts.forEach((h) => {
+        h.life -= 0.015;
+        h.shape.translate.y -= 1.4;
+        h.shape.translate.x += h.drift;
+        h.shape.scale = { x: h.life, y: h.life, z: h.life };
+      });
+
+      hearts = hearts.filter((h) => {
+        if (h.life <= 0) {
+          h.shape.remove();
+          return false;
+        }
+        return true;
+      });
+
+      illo.updateRenderGraph();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
