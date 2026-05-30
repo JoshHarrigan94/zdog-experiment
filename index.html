@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Raisin Desk Toy</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pen y Fan — Zdog Diorama</title>
   <script src="https://unpkg.com/zdog@1/dist/zdog.dist.min.js"></script>
 
   <style>
@@ -14,472 +13,587 @@
       margin: 0;
       min-height: 100vh;
       overflow: hidden;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: ui-rounded, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at 30% 20%, #ffe8d6 0%, transparent 34%),
-        radial-gradient(circle at 70% 80%, #d8f3dc 0%, transparent 34%),
-        linear-gradient(135deg, #fffaf3, #f3efe6);
-      color: #2d2a26;
-      display: flex;
-      flex-direction: column;
+        radial-gradient(circle at 25% 15%, #fff2cf 0 12%, transparent 35%),
+        radial-gradient(circle at 80% 20%, #d6ecff 0 12%, transparent 35%),
+        linear-gradient(180deg, #eaf6ff 0%, #f8f1dc 48%, #dbe7c8 100%);
+      color: #263323;
     }
 
     header {
       position: fixed;
+      z-index: 10;
       top: 18px;
       left: 18px;
-      z-index: 10;
+      max-width: 320px;
+      padding: 14px 16px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.62);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 50px rgba(39, 57, 43, 0.16);
     }
 
     h1 {
       margin: 0;
-      font-size: 1.25rem;
-      letter-spacing: -0.04em;
+      font-size: 1.2rem;
+      letter-spacing: -0.045em;
     }
 
-    .status {
-      margin-top: 6px;
-      font-size: 0.85rem;
-      opacity: 0.75;
+    p {
+      margin: 6px 0 0;
+      font-size: 0.82rem;
+      line-height: 1.35;
+      opacity: 0.72;
+    }
+
+    .badge {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 10;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(38, 51, 35, 0.84);
+      color: white;
+      font-size: 0.78rem;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.18);
     }
 
     canvas {
       width: 100vw;
       height: 100vh;
       display: block;
-      touch-action: none;
       cursor: grab;
+      touch-action: none;
     }
 
-    canvas:active {
-      cursor: grabbing;
-    }
-
-    .controls {
-      position: fixed;
-      left: 50%;
-      bottom: 22px;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 10px;
-      z-index: 10;
-      padding: 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.58);
-      backdrop-filter: blur(14px);
-      box-shadow: 0 18px 48px rgba(60, 40, 20, 0.16);
-    }
-
-    button {
-      border: 0;
-      border-radius: 999px;
-      padding: 11px 16px;
-      font-weight: 700;
-      background: #2d2a26;
-      color: white;
-      box-shadow: 0 8px 22px rgba(0,0,0,0.14);
-    }
-
-    button:active {
-      transform: scale(0.96);
-    }
-
-    .hint {
-      position: fixed;
-      right: 18px;
-      top: 18px;
-      max-width: 190px;
-      font-size: 0.78rem;
-      line-height: 1.35;
-      opacity: 0.65;
-      text-align: right;
-    }
-
-    @media (max-width: 640px) {
-      .controls {
-        width: calc(100vw - 22px);
-        justify-content: space-between;
-        bottom: 14px;
-      }
-
-      button {
-        flex: 1;
-        padding: 11px 8px;
-        font-size: 0.8rem;
-      }
-
-      .hint {
-        display: none;
-      }
-    }
+    canvas:active { cursor: grabbing; }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>Raisin</h1>
-    <div class="status">
-      Mood: <strong id="mood">calm</strong> · Pets: <strong id="pets">0</strong>
-    </div>
+    <h1>Pen y Fan</h1>
+    <p>A static Zdog mountain diorama: summit plateau, cairn, trig point, ridgelines, paths, mist and tiny hikers.</p>
   </header>
 
-  <div class="hint">
-    Tap Raisin to pet her. Double tap for zoomies. Press and hold to make her sleepy.
-  </div>
+  <div class="badge">Drag to rotate</div>
 
   <canvas class="zdog-canvas"></canvas>
 
-  <div class="controls">
-    <button id="sitBtn">Sit</button>
-    <button id="napBtn">Nap</button>
-    <button id="zoomBtn">Zoomies</button>
-    <button id="resetBtn">Reset</button>
-  </div>
-
   <script>
-    const moodEl = document.getElementById("mood");
-    const petsEl = document.getElementById("pets");
-    const canvas = document.querySelector(".zdog-canvas");
-
-    let mood = "calm";
-    let pets = 0;
-    let action = "idle";
-    let lastTap = 0;
-    let pressTimer = null;
-    let lastInteraction = Date.now();
-    let burst = 0;
-    let hearts = [];
-
     const TAU = Zdog.TAU;
+    const canvas = document.querySelector(".zdog-canvas");
 
     const illo = new Zdog.Illustration({
       element: canvas,
       dragRotate: true,
-      rotate: { x: -0.2, y: 0.2 }
+      rotate: { x: -0.42, y: -0.38, z: 0 },
+      zoom: 1
     });
 
-    const shadow = new Zdog.Ellipse({
-      addTo: illo,
-      diameter: 230,
-      quarters: 2,
-      translate: { y: 118, z: -20 },
-      rotate: { x: TAU / 4 },
-      stroke: 24,
-      color: "rgba(0,0,0,0.08)",
-      fill: true
-    });
+    const scene = new Zdog.Anchor({ addTo: illo });
 
-    const dog = new Zdog.Anchor({ addTo: illo });
-
-    const body = new Zdog.RoundedRect({
-      addTo: dog,
-      width: 165,
-      height: 90,
-      cornerRadius: 42,
-      stroke: 38,
-      color: "#6b3f2a",
-      fill: true,
-      translate: { y: 40 }
-    });
-
-    const chest = new Zdog.Shape({
-      addTo: dog,
-      path: [{ x: -42, y: 20 }, { x: -52, y: 70 }],
-      stroke: 34,
-      color: "#f1d3b2",
-      translate: { z: 22 }
-    });
-
-    const headAnchor = new Zdog.Anchor({
-      addTo: dog,
-      translate: { x: -78, y: -28, z: 14 }
-    });
-
-    const head = new Zdog.Ellipse({
-      addTo: headAnchor,
-      diameter: 86,
-      stroke: 42,
-      color: "#7b4931",
-      fill: true
-    });
-
-    const muzzle = new Zdog.Ellipse({
-      addTo: headAnchor,
-      diameter: 48,
-      stroke: 22,
-      color: "#e8c3a0",
-      translate: { x: -22, y: 18, z: 28 },
-      fill: true
-    });
-
-    const nose = new Zdog.Shape({
-      addTo: headAnchor,
-      path: [{ x: -43, y: 13 }],
-      stroke: 12,
-      color: "#211b18",
-      translate: { z: 48 }
-    });
-
-    const leftEye = new Zdog.Shape({
-      addTo: headAnchor,
-      path: [{ x: -22, y: -10 }],
-      stroke: 8,
-      color: "#211b18",
-      translate: { z: 44 }
-    });
-
-    const rightEye = leftEye.copy({
-      translate: { x: 10, y: -10, z: 44 }
-    });
-
-    const leftEar = new Zdog.Ellipse({
-      addTo: headAnchor,
-      diameter: 58,
-      stroke: 24,
-      color: "#4b2b1d",
-      translate: { x: -15, y: 18, z: -12 },
-      rotate: { z: 0.22 },
-      fill: true
-    });
-
-    const rightEar = leftEar.copy({
-      translate: { x: 34, y: 18, z: -12 },
-      rotate: { z: -0.22 }
-    });
-
-    const tailAnchor = new Zdog.Anchor({
-      addTo: dog,
-      translate: { x: 92, y: 10, z: 0 }
-    });
-
-    const tail = new Zdog.Shape({
-      addTo: tailAnchor,
-      path: [
-        { x: 0, y: 0 },
-        { x: 36, y: -32 },
-        { x: 56, y: -10 }
-      ],
-      closed: false,
-      stroke: 18,
-      color: "#4b2b1d"
-    });
-
-    function leg(x, z) {
-      return new Zdog.Shape({
-        addTo: dog,
-        path: [{ y: 0 }, { y: 55 }],
-        stroke: 24,
-        color: "#5a3423",
-        translate: { x, y: 70, z }
-      });
-    }
-
-    leg(-50, 28);
-    leg(42, 28);
-    leg(-44, -24);
-    leg(50, -24);
-
-    const badge = new Zdog.RoundedRect({
-      addTo: dog,
-      width: 58,
-      height: 24,
-      cornerRadius: 10,
-      stroke: 5,
-      color: "#ffcf56",
-      fill: true,
-      translate: { x: -8, y: -24, z: 46 }
-    });
-
-    const heartLayer = new Zdog.Anchor({ addTo: illo });
-
-    function setMood(next) {
-      mood = next;
-      moodEl.textContent = mood;
-      lastInteraction = Date.now();
-    }
-
-    function addHeart() {
-      const h = new Zdog.Shape({
-        addTo: heartLayer,
-        path: [
-          { x: 0, y: 0 },
-          { x: -8, y: -8 },
-          { x: -16, y: 0 },
-          { x: 0, y: 18 },
-          { x: 16, y: 0 },
-          { x: 8, y: -8 },
-          { x: 0, y: 0 }
-        ],
-        closed: true,
-        stroke: 4,
-        color: "#ff6b8a",
-        fill: true,
-        translate: {
-          x: -80 + Math.random() * 80,
-          y: -70,
-          z: 80
-        }
-      });
-
-      hearts.push({
-        shape: h,
-        life: 1,
-        drift: -0.4 + Math.random() * 0.8
-      });
-    }
-
-    function pet() {
-      pets++;
-      petsEl.textContent = pets;
-      setMood("happy");
-      burst = 1;
-      action = "happy";
-      addHeart();
-    }
-
-    function zoomies() {
-      setMood("excited");
-      burst = 2.5;
-      action = "zoomies";
-      for (let i = 0; i < 4; i++) addHeart();
-    }
-
-    function sit() {
-      setMood("calm");
-      action = "sit";
-    }
-
-    function nap() {
-      setMood("sleepy");
-      action = "nap";
-    }
-
-    function reset() {
-      setMood("calm");
-      action = "idle";
-      burst = 0;
-      dog.translate.set({ x: 0, y: 0, z: 0 });
-      dog.rotate.set({ x: 0, y: 0, z: 0 });
-    }
-
-    document.getElementById("sitBtn").onclick = sit;
-    document.getElementById("napBtn").onclick = nap;
-    document.getElementById("zoomBtn").onclick = zoomies;
-    document.getElementById("resetBtn").onclick = reset;
-
-    canvas.addEventListener("pointerdown", () => {
-      pressTimer = setTimeout(() => {
-        nap();
-      }, 650);
-    });
-
-    canvas.addEventListener("pointerup", () => {
-      clearTimeout(pressTimer);
-
-      const now = Date.now();
-      if (now - lastTap < 280) {
-        zoomies();
-      } else {
-        pet();
-      }
-      lastTap = now;
-    });
-
-    canvas.addEventListener("pointermove", (e) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 0.5;
-      const y = (e.clientY / window.innerHeight - 0.5) * 0.35;
-      headAnchor.rotate.y = x;
-      headAnchor.rotate.x = -y;
-    });
-
-    function resizeCanvas() {
+    function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
       canvas.style.width = window.innerWidth + "px";
       canvas.style.height = window.innerHeight + "px";
-      illo.zoom = Math.min(window.innerWidth, window.innerHeight) / 380;
-    }
-
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
-
-    function animate() {
-      const t = Date.now() * 0.001;
-
-      if (Date.now() - lastInteraction > 12000 && mood !== "sleepy") {
-        setMood("sleepy");
-        action = "nap";
-      }
-
-      const breathe = Math.sin(t * 2) * 3;
-      const wagSpeed = mood === "excited" ? 18 : mood === "happy" ? 11 : 5;
-      const wagAmount = mood === "sleepy" ? 0.08 : mood === "excited" ? 0.75 : 0.38;
-
-      dog.translate.y = breathe;
-
-      tailAnchor.rotate.z = Math.sin(t * wagSpeed) * wagAmount;
-      leftEar.rotate.z = 0.22 + Math.sin(t * 3.2) * 0.04;
-      rightEar.rotate.z = -0.22 - Math.sin(t * 3.2) * 0.04;
-
-      const blink = Math.sin(t * 2.8) > 0.96;
-      leftEye.stroke = blink || mood === "sleepy" ? 2 : 8;
-      rightEye.stroke = blink || mood === "sleepy" ? 2 : 8;
-
-      if (action === "happy") {
-        dog.translate.y += Math.sin(t * 18) * 8 * burst;
-        dog.rotate.z = Math.sin(t * 12) * 0.08 * burst;
-        burst *= 0.96;
-        if (burst < 0.05) action = "idle";
-      }
-
-      if (action === "zoomies") {
-        dog.translate.x = Math.sin(t * 13) * 42;
-        dog.rotate.z = Math.sin(t * 16) * 0.18;
-        dog.translate.y += Math.abs(Math.sin(t * 18)) * 12;
-        burst *= 0.985;
-        if (burst < 0.25) {
-          dog.translate.x = 0;
-          action = "idle";
-          setMood("happy");
-        }
-      }
-
-      if (action === "sit") {
-        dog.rotate.z = 0;
-        dog.translate.y = 18 + breathe;
-        headAnchor.rotate.z = Math.sin(t * 2) * 0.08;
-      }
-
-      if (action === "nap") {
-        dog.rotate.z = -0.18;
-        dog.translate.y = 44 + Math.sin(t * 1.2) * 2;
-        headAnchor.rotate.z = -0.3;
-        tailAnchor.rotate.z = 0.04;
-      } else {
-        headAnchor.rotate.z += Math.sin(t * 1.4) * 0.002;
-      }
-
-      hearts.forEach((h) => {
-        h.life -= 0.015;
-        h.shape.translate.y -= 1.4;
-        h.shape.translate.x += h.drift;
-        h.shape.scale = { x: h.life, y: h.life, z: h.life };
-      });
-
-      hearts = hearts.filter((h) => {
-        if (h.life <= 0) {
-          h.shape.remove();
-          return false;
-        }
-        return true;
-      });
-
+      illo.zoom = Math.min(window.innerWidth, window.innerHeight) / 480;
       illo.updateRenderGraph();
-      requestAnimationFrame(animate);
     }
 
-    animate();
+    window.addEventListener("resize", resize);
+
+    function shape(opts) {
+      return new Zdog.Shape(opts);
+    }
+
+    function ellipse(opts) {
+      return new Zdog.Ellipse(opts);
+    }
+
+    function roundedRect(opts) {
+      return new Zdog.RoundedRect(opts);
+    }
+
+    function cone(opts) {
+      return new Zdog.Cone(opts);
+    }
+
+    function cylinder(opts) {
+      return new Zdog.Cylinder(opts);
+    }
+
+    function hemisphere(opts) {
+      return new Zdog.Hemisphere(opts);
+    }
+
+    function addRidge(path, color, stroke, z, yShift = 0) {
+      return shape({
+        addTo: scene,
+        path,
+        closed: true,
+        stroke,
+        color,
+        fill: true,
+        translate: { z, y: yShift }
+      });
+    }
+
+    function addPath(points, color = "#e9d7a6", stroke = 8, z = 60) {
+      return shape({
+        addTo: scene,
+        path: points,
+        closed: false,
+        stroke,
+        color,
+        translate: { z }
+      });
+    }
+
+    function addStone(x, y, z, size = 7, color = "#8a887d") {
+      return hemisphere({
+        addTo: scene,
+        diameter: size,
+        stroke: false,
+        color,
+        backface: "#6f6f66",
+        translate: { x, y, z },
+        rotate: { x: -TAU / 4 }
+      });
+    }
+
+    function addGrassTuft(x, y, z, scale = 1, color = "#556b35") {
+      shape({
+        addTo: scene,
+        path: [
+          { x: 0, y: 0 },
+          { x: -5 * scale, y: -10 * scale }
+        ],
+        stroke: 2.5 * scale,
+        color,
+        translate: { x, y, z }
+      });
+      shape({
+        addTo: scene,
+        path: [
+          { x: 0, y: 0 },
+          { x: 2 * scale, y: -12 * scale }
+        ],
+        stroke: 2.5 * scale,
+        color,
+        translate: { x, y, z }
+      });
+      shape({
+        addTo: scene,
+        path: [
+          { x: 0, y: 0 },
+          { x: 7 * scale, y: -8 * scale }
+        ],
+        stroke: 2.5 * scale,
+        color,
+        translate: { x, y, z }
+      });
+    }
+
+    function addCloud(x, y, z, s = 1) {
+      const cloud = new Zdog.Anchor({
+        addTo: scene,
+        translate: { x, y, z }
+      });
+
+      ellipse({
+        addTo: cloud,
+        diameter: 45 * s,
+        stroke: 22 * s,
+        color: "rgba(255,255,255,0.82)",
+        fill: true
+      });
+
+      ellipse({
+        addTo: cloud,
+        diameter: 35 * s,
+        stroke: 18 * s,
+        color: "rgba(255,255,255,0.75)",
+        fill: true,
+        translate: { x: -28 * s, y: 4 * s }
+      });
+
+      ellipse({
+        addTo: cloud,
+        diameter: 40 * s,
+        stroke: 18 * s,
+        color: "rgba(255,255,255,0.72)",
+        fill: true,
+        translate: { x: 30 * s, y: 5 * s }
+      });
+
+      return cloud;
+    }
+
+    function addHiker(x, y, z, shirt = "#d94f38") {
+      const h = new Zdog.Anchor({
+        addTo: scene,
+        translate: { x, y, z }
+      });
+
+      shape({
+        addTo: h,
+        path: [{ y: -16 }, { y: 2 }],
+        stroke: 8,
+        color: shirt
+      });
+
+      ellipse({
+        addTo: h,
+        diameter: 9,
+        stroke: 5,
+        color: "#d8a77b",
+        translate: { y: -24 }
+      });
+
+      shape({
+        addTo: h,
+        path: [{ x: -3, y: 3 }, { x: -9, y: 16 }],
+        stroke: 3,
+        color: "#263323"
+      });
+
+      shape({
+        addTo: h,
+        path: [{ x: 3, y: 3 }, { x: 8, y: 16 }],
+        stroke: 3,
+        color: "#263323"
+      });
+
+      shape({
+        addTo: h,
+        path: [{ x: 8, y: -8 }, { x: 18, y: 13 }],
+        stroke: 2,
+        color: "#4d3d2c"
+      });
+
+      return h;
+    }
+
+    function addLabel(text, x, y, z, w = 120) {
+      const a = new Zdog.Anchor({
+        addTo: scene,
+        translate: { x, y, z }
+      });
+
+      roundedRect({
+        addTo: a,
+        width: w,
+        height: 30,
+        cornerRadius: 10,
+        stroke: 5,
+        color: "#263323",
+        fill: true
+      });
+
+      const letters = text.toUpperCase().split("");
+      let start = -((letters.length - 1) * 8) / 2;
+
+      letters.forEach((char, i) => {
+        if (char === " ") return;
+
+        shape({
+          addTo: a,
+          path: [
+            { x: start + i * 8, y: -5 },
+            { x: start + i * 8, y: 5 }
+          ],
+          stroke: 2,
+          color: "#f8f1dc",
+          translate: { z: 4 }
+        });
+      });
+
+      return a;
+    }
+
+    addRidge([
+      { x: -230, y: 120 },
+      { x: -210, y: 70 },
+      { x: -165, y: 32 },
+      { x: -120, y: 2 },
+      { x: -70, y: -20 },
+      { x: -20, y: -34 },
+      { x: 30, y: -31 },
+      { x: 82, y: -10 },
+      { x: 132, y: 23 },
+      { x: 178, y: 66 },
+      { x: 230, y: 120 }
+    ], "#9baa69", 34, -28);
+
+    addRidge([
+      { x: -210, y: 128 },
+      { x: -165, y: 76 },
+      { x: -115, y: 48 },
+      { x: -58, y: 31 },
+      { x: 10, y: 24 },
+      { x: 76, y: 37 },
+      { x: 134, y: 70 },
+      { x: 208, y: 128 }
+    ], "#6f8647", 32, 8, 20);
+
+    addRidge([
+      { x: -190, y: 145 },
+      { x: -145, y: 105 },
+      { x: -95, y: 83 },
+      { x: -36, y: 75 },
+      { x: 24, y: 78 },
+      { x: 85, y: 92 },
+      { x: 145, y: 116 },
+      { x: 190, y: 145 }
+    ], "#506d3c", 38, 48, 48);
+
+    addRidge([
+      { x: -110, y: 34 },
+      { x: -70, y: -30 },
+      { x: -20, y: -65 },
+      { x: 35, y: -62 },
+      { x: 82, y: -25 },
+      { x: 117, y: 34 },
+      { x: 72, y: 58 },
+      { x: -55, y: 58 }
+    ], "#b7b06d", 26, 42, -10);
+
+    addRidge([
+      { x: -86, y: 36 },
+      { x: -44, y: -48 },
+      { x: 6, y: -92 },
+      { x: 54, y: -45 },
+      { x: 88, y: 36 },
+      { x: 42, y: 57 },
+      { x: -42, y: 57 }
+    ], "#c6bd72", 22, 70, -26);
+
+    addRidge([
+      { x: -50, y: -42 },
+      { x: -16, y: -82 },
+      { x: 25, y: -83 },
+      { x: 62, y: -42 },
+      { x: 28, y: -25 },
+      { x: -22, y: -25 }
+    ], "#d2c778", 16, 94, -34);
+
+    addRidge([
+      { x: -185, y: 58 },
+      { x: -140, y: 30 },
+      { x: -105, y: 22 },
+      { x: -72, y: 30 },
+      { x: -50, y: 56 },
+      { x: -92, y: 82 },
+      { x: -150, y: 86 }
+    ], "#819352", 16, 88, 6);
+
+    addRidge([
+      { x: 78, y: 38 },
+      { x: 120, y: 26 },
+      { x: 172, y: 50 },
+      { x: 198, y: 92 },
+      { x: 136, y: 91 },
+      { x: 92, y: 67 }
+    ], "#7b8d4e", 16, 82, 8);
+
+    addPath([
+      { x: -185, y: 118 },
+      { x: -143, y: 92 },
+      { x: -92, y: 62 },
+      { x: -48, y: 30 },
+      { x: -12, y: -10 },
+      { x: 10, y: -48 },
+      { x: 18, y: -75 }
+    ], "#eadba4", 7, 118);
+
+    addPath([
+      { x: 145, y: 112 },
+      { x: 112, y: 86 },
+      { x: 84, y: 56 },
+      { x: 58, y: 20 },
+      { x: 38, y: -20 },
+      { x: 18, y: -75 }
+    ], "#dec98b", 6, 122);
+
+    addPath([
+      { x: -22, y: -72 },
+      { x: 0, y: -86 },
+      { x: 28, y: -82 },
+      { x: 50, y: -64 }
+    ], "#eee2ad", 7, 130);
+
+    cylinder({
+      addTo: scene,
+      diameter: 28,
+      length: 44,
+      stroke: false,
+      color: "#e9e4d1",
+      backface: "#bab4a4",
+      translate: { x: 12, y: -100, z: 150 },
+      rotate: { x: TAU / 4 }
+    });
+
+    cylinder({
+      addTo: scene,
+      diameter: 20,
+      length: 10,
+      stroke: false,
+      color: "#cfc8b8",
+      backface: "#aaa394",
+      translate: { x: 12, y: -122, z: 150 },
+      rotate: { x: TAU / 4 }
+    });
+
+    for (let i = 0; i < 42; i++) {
+      const angle = i * 0.72;
+      const radius = 16 + Math.random() * 34;
+      addStone(
+        12 + Math.cos(angle) * radius,
+        -91 + Math.sin(angle) * radius * 0.35,
+        142 + Math.random() * 16,
+        5 + Math.random() * 8,
+        i % 3 === 0 ? "#77786e" : "#969184"
+      );
+    }
+
+    addLabel("PEN Y FAN", 13, -165, 132, 118);
+
+    for (let i = 0; i < 85; i++) {
+      const x = -205 + Math.random() * 410;
+      const y = 10 + Math.random() * 130;
+      const z = 62 + Math.random() * 50;
+      addGrassTuft(x, y, z, 0.55 + Math.random() * 0.55, i % 2 ? "#4f6638" : "#65793d");
+    }
+
+    for (let i = 0; i < 55; i++) {
+      const x = -210 + Math.random() * 420;
+      const y = 55 + Math.random() * 95;
+      const z = 80 + Math.random() * 65;
+      addStone(x, y, z, 4 + Math.random() * 5, i % 2 ? "#75786d" : "#8d8c7f");
+    }
+
+    shape({
+      addTo: scene,
+      path: [
+        { x: -145, y: 12 },
+        { x: -110, y: 74 },
+        { x: -76, y: 116 }
+      ],
+      stroke: 4,
+      color: "rgba(63,84,55,0.28)",
+      translate: { z: 138 }
+    });
+
+    shape({
+      addTo: scene,
+      path: [
+        { x: 85, y: 8 },
+        { x: 115, y: 62 },
+        { x: 158, y: 110 }
+      ],
+      stroke: 4,
+      color: "rgba(63,84,55,0.25)",
+      translate: { z: 138 }
+    });
+
+    shape({
+      addTo: scene,
+      path: [
+        { x: -38, y: -20 },
+        { x: -52, y: 44 },
+        { x: -58, y: 98 }
+      ],
+      stroke: 3,
+      color: "rgba(55,74,48,0.26)",
+      translate: { z: 142 }
+    });
+
+    shape({
+      addTo: scene,
+      path: [
+        { x: 42, y: -24 },
+        { x: 52, y: 34 },
+        { x: 70, y: 100 }
+      ],
+      stroke: 3,
+      color: "rgba(55,74,48,0.24)",
+      translate: { z: 142 }
+    });
+
+    addCloud(-150, -155, 30, 0.7);
+    addCloud(145, -132, 55, 0.55);
+    addCloud(0, -185, -20, 0.42);
+
+    shape({
+      addTo: scene,
+      path: [
+        { x: -230, y: 82 },
+        { x: -160, y: 74 },
+        { x: -90, y: 76 },
+        { x: -20, y: 70 },
+        { x: 60, y: 74 },
+        { x: 130, y: 70 },
+        { x: 220, y: 78 }
+      ],
+      stroke: 18,
+      color: "rgba(255,255,255,0.34)",
+      translate: { z: 165 }
+    });
+
+    shape({
+      addTo: scene,
+      path: [
+        { x: -210, y: 30 },
+        { x: -130, y: 25 },
+        { x: -70, y: 28 },
+        { x: -10, y: 24 },
+        { x: 70, y: 30 },
+        { x: 155, y: 25 }
+      ],
+      stroke: 10,
+      color: "rgba(255,255,255,0.24)",
+      translate: { z: 170 }
+    });
+
+    addHiker(-80, 64, 155, "#d95e40");
+    addHiker(-62, 56, 158, "#265f9c");
+    addHiker(70, 70, 154, "#e3a72f");
+
+    const base = new Zdog.Box({
+      addTo: scene,
+      width: 500,
+      height: 22,
+      depth: 280,
+      stroke: false,
+      color: "#9a704c",
+      leftFace: "#7c5638",
+      rightFace: "#8c6240",
+      topFace: "#b68a5d",
+      bottomFace: "#5f3f2a",
+      translate: { y: 166, z: 26 },
+      rotate: { x: 0 }
+    });
+
+    roundedRect({
+      addTo: scene,
+      width: 210,
+      height: 42,
+      cornerRadius: 16,
+      stroke: 6,
+      color: "#2d3326",
+      fill: true,
+      translate: { x: 0, y: 180, z: 180 }
+    });
+
+    addLabel("BRECON BEACONS", 0, 180, 190, 170);
+
+    resize();
+    illo.updateRenderGraph();
   </script>
 </body>
 </html>
