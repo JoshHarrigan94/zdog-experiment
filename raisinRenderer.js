@@ -542,18 +542,19 @@ if (isPlaySeeking) {
         this.headAnchor.rotate.z += Math.sin(t * 0.018) * 0.045;
       }
 
-      if (mood.emotion === "uncertain") {
-
-      if (mood.emotion === "uncertain") {
-  this.root.rotate.y = Math.sin(t * 0.025) * 0.08 - 0.12 + reactionTurn;
-} else if (isLookingOver) {
-  this.root.rotate.y = -0.28 + Math.sin(t * 0.025) * 0.04 + reactionTurn;
-} else if (isInvestigating) {
-  this.root.rotate.y = 0.18 + Math.sin(t * 0.04) * 0.08 + reactionTurn;
-} else {
-  this.root.rotate.y = Math.sin(t * 0.015) * 0.04 + reactionTurn;
-}
-    }
+            if (mood.emotion === "uncertain") {
+        this.root.rotate.y =
+          Math.sin(t * 0.025) * 0.08 - 0.12 + reactionTurn;
+      } else if (isLookingOver) {
+        this.root.rotate.y =
+          -0.28 + Math.sin(t * 0.025) * 0.04 + reactionTurn;
+      } else if (isInvestigating) {
+        this.root.rotate.y =
+          0.18 + Math.sin(t * 0.04) * 0.08 + reactionTurn;
+      } else {
+        this.root.rotate.y =
+          Math.sin(t * 0.015) * 0.04 + reactionTurn;
+      }
 
     animate() {
       this.time += 1;
