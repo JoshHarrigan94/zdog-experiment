@@ -246,6 +246,41 @@
         this.legs.push(anchor);
       });
 
+
+      this.browLeft = new Zdog.Shape({
+        addTo: this.headAnchor,
+        path: [
+          { x: -6, y: -14 },
+          { x: 2, y: -15 },
+        ],
+        translate: { z: 22 },
+        stroke: 2.5,
+        color: "#2a170f",
+      });
+
+      this.browRight = new Zdog.Shape({
+        addTo: this.headAnchor,
+        path: [
+          { x: 8, y: -15 },
+          { x: 16, y: -14 },
+        ],
+        translate: { z: 18 },
+        stroke: 2.5,
+        color: "#2a170f",
+      });
+
+      this.mouth = new Zdog.Shape({
+        addTo: this.headAnchor,
+        path: [
+          { x: -10, y: 14 },
+          { x: -4, y: 17 },
+          { x: 3, y: 15 },
+        ],
+        translate: { z: 24 },
+        stroke: 2.5,
+        color: "#3a2115",
+        closed: false,
+      });
       this.cheekPatch = new Zdog.Shape({
         addTo: this.headAnchor,
         path: [
@@ -344,9 +379,66 @@
       this.leftEye.scale = { x: 1, y: blink ? 0.15 : 1, z: 1 };
       this.rightEye.scale = { x: 1, y: blink ? 0.15 : 1, z: 1 };
 
+            this.mouth.scale = { x: 1, y: 1, z: 1 };
+      this.browLeft.rotate.z = 0;
+      this.browRight.rotate.z = 0;
+
+      if (mood.emotion === "excited") {
+        this.mouth.path = [
+          { x: -11, y: 13 },
+          { x: -4, y: 19 },
+          { x: 5, y: 14 },
+        ];
+
+        this.leftEye.scale = { x: 1.12, y: blink ? 0.15 : 1.12, z: 1 };
+        this.rightEye.scale = { x: 1.12, y: blink ? 0.15 : 1.12, z: 1 };
+      }
+
+      if (mood.emotion === "curious") {
+        this.browLeft.rotate.z = -0.22;
+        this.browRight.rotate.z = 0.18;
+        this.muzzle.translate.z = 15;
+      } else {
+        this.muzzle.translate.z = 13;
+      }
+
+      if (mood.emotion === "playful") {
+        this.mouth.path = [
+          { x: -12, y: 14 },
+          { x: -5, y: 20 },
+          { x: 6, y: 16 },
+        ];
+
+        this.root.rotate.z = Math.sin(t * 0.08) * 0.035;
+      } else {
+        this.root.rotate.z = 0;
+      }
+
       if (mood.emotion === "sleepy") {
         this.tailAnchor.rotate.z = -0.7 + Math.sin(t * 0.02) * 0.05;
+        this.leftEye.scale = { x: 1, y: 0.28, z: 1 };
+        this.rightEye.scale = { x: 1, y: 0.28, z: 1 };
+        this.browLeft.rotate.z = 0.14;
+        this.browRight.rotate.z = -0.14;
       }
+
+      if (mood.emotion === "uncertain") {
+        this.browLeft.rotate.z = 0.26;
+        this.browRight.rotate.z = -0.26;
+        this.mouth.scale = { x: 0.75, y: 0.75, z: 1 };
+      }
+
+      if (mood.emotion === "settled") {
+        this.mouth.path = [
+          { x: -9, y: 14 },
+          { x: -3, y: 16 },
+          { x: 4, y: 14 },
+        ];
+
+        this.headAnchor.rotate.z += Math.sin(t * 0.018) * 0.045;
+      }
+
+      if (mood.emotion === "uncertain") {
 
       if (mood.emotion === "uncertain") {
         this.root.rotate.y = Math.sin(t * 0.025) * 0.08 - 0.12;
