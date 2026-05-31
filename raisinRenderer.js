@@ -551,10 +551,13 @@ if (isPlaySeeking) {
       } else if (isInvestigating) {
         this.root.rotate.y =
           0.18 + Math.sin(t * 0.04) * 0.08 + reactionTurn;
-      } else {
+           } else {
         this.root.rotate.y =
           Math.sin(t * 0.015) * 0.04 + reactionTurn;
       }
+    }
+
+    animate() {
 
     animate() {
       this.time += 1;
