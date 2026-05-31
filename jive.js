@@ -150,6 +150,21 @@
           reason: forceReason,
         });
       }
+      
+      if (forceReason === "ambient" && Math.random() < 0.08) {
+  const ambientThoughts = [
+    `${this.name} twitches one ear.`,
+    `${this.name} shifts her weight slightly.`,
+    `${this.name} blinks slowly.`,
+    `${this.name} notices something in the room.`,
+    `${this.name} settles into the moment.`,
+  ];
+
+  this.emit("event", {
+    message: ambientThoughts[Math.floor(Math.random() * ambientThoughts.length)],
+    reason: "ambient-detail",
+  });
+}
 
       return this.getState();
     }
