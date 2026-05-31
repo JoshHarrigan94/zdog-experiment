@@ -75,6 +75,10 @@ const renderer = new window.RaisinRenderer(companionStage);
     renderMetric(metricTrust, state.relationship.trust);
 renderMetric(metricBond, state.relationship.bond);
     companionStage.dataset.emotion = state.emotion;
+        if (state.environment) {
+      companionStage.dataset.phase = state.environment.phase;
+      companionStage.dataset.weather = state.environment.weather;
+    }
   }
 
   function renderEvent(event) {
