@@ -57,8 +57,17 @@ const renderer = new window.RaisinRenderer(companionStage);
   }
 
   function renderMetric(element, value) {
-    element.textContent = round(value);
+  const next = round(value);
+  const previous = Number(element.textContent);
+
+  element.textContent = next;
+
+  if (!Number.isNaN(previous) && previous !== next) {
+    element.classList.remove("bump");
+    void element.offsetWidth;
+    element.classList.add("bump");
   }
+}
 
   function renderState(state) {
   renderer.setState(state);
@@ -132,10 +141,15 @@ renderMetric(metricBond, state.relationship.bond);
 
   clearLogButton.addEventListener("click", () => {
     eventLog.innerHTML = "";
-    renderEvent({
-      time: Date.now(),
-      message: "Event stream cleared.",
-    });
+    const totalInteractions = raisin.getState().memory.totalInteractions;
+
+renderEvent({
+  time: Date.now(),
+  message:
+    totalInteractions > 0
+      ? `Raisin remembers ${totalInteractions} moment${totalInteractions === 1 ? "" : "s"} with you.`
+      : "Raisin is meeting you for the first time.",
+});
   });
 
     let pressTimer = null;
