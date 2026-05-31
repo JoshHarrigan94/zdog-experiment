@@ -18,7 +18,11 @@
       this.state = null;
       this.time = 0;
       this.pointer = { x: 0, y: 0, active: false };
-
+            this.reaction = {
+        type: null,
+        startedAt: 0,
+        strength: 0,
+      };
       this.canvas = document.createElement("canvas");
       this.canvas.className = "raisin-canvas";
       this.stageElement.innerHTML = "";
@@ -311,8 +315,40 @@
       });
     }
 
-    setState(state) {
+        setState(state) {
+      const previousInteraction = this.state?.memory?.lastInteraction;
+      const nextInteraction = state?.memory?.lastInteraction;
+
+      if (nextInteraction && nextInteraction !== previousInteraction) {
+        this.triggerReaction(nextInteraction);
+      }
+
       this.state = state;
+    }
+
+    triggerReaction(type) {
+      this.reaction = {
+        type,
+        startedAt: performance.now(),
+        strength: 1,
+      };
+    }
+
+    getReactionValue() {
+      if (!this.reaction.type) return 0;
+
+      const elapsed = performance.now() - this.reaction.startedAt;
+      const duration = 850;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(progress, 3);
+
+      if (progress >= 1) {
+        this.reaction.type = null;
+        this.reaction.strength = 0;
+        return 0;
+      }
+
+      return eased;
     }
 
     getMoodValues() {
@@ -336,6 +372,8 @@
     applyMoodPose() {
       const mood = this.getMoodValues();
       const t = this.time;
+            const reactionValue = this.getReactionValue();
+      const reactionType = this.reaction.type;
 
       const breath = Math.sin(t * 0.045) * 0.035;
       const curiousTilt = mood.emotion === "curious" ? Math.sin(t * 0.035) * 0.22 : 0;
@@ -343,15 +381,37 @@
       const excitedLift = mood.emotion === "excited" ? -0.16 : 0;
       const playBounce = mood.emotion === "playful" ? Math.sin(t * 0.09) * 2.2 : 0;
 
-      this.root.translate.y = 10 + playBounce;
+            let reactionLift = 0;
+      let reactionLean = 0;
+      let reactionTurn = 0;
+
+      if (reactionType === "pet") {
+        reactionLean = -0.18 * reactionValue;
+      }
+
+      if (reactionType === "play") {
+        reactionLift = -9 * Math.sin(reactionValue * Math.PI);
+        reactionTurn = Math.sin(this.time * 0.32) * 0.22 * reactionValue;
+      }
+
+      if (reactionType === "comfort") {
+        reactionLean = 0.12 * reactionValue;
+        reactionLift = 2 * reactionValue;
+      }
+
+      if (reactionType === "call") {
+        reactionTurn = -0.32 * reactionValue;
+      }
+
+      this.root.translate.y = 10 + playBounce + reactionLift;
       this.body.scale = {
         x: 1 + breath,
         y: 1 - breath * 0.45,
         z: 1,
       };
 
-      this.headAnchor.rotate.z =
-        -0.04 + curiousTilt + this.pointer.x * 0.1;
+            this.headAnchor.rotate.z =
+        -0.04 + curiousTilt + this.pointer.x * 0.1 + reactionLean;
 
       this.headAnchor.rotate.x =
         sleepyDrop + this.pointer.y * 0.08;
@@ -443,7 +503,7 @@
       if (mood.emotion === "uncertain") {
         this.root.rotate.y = Math.sin(t * 0.025) * 0.08 - 0.12;
       } else {
-        this.root.rotate.y = Math.sin(t * 0.015) * 0.04;
+                this.root.rotate.y = Math.sin(t * 0.015) * 0.04 + reactionTurn;
       }
     }
 
