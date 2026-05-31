@@ -44,6 +44,13 @@
   bond: options.bond ?? 18,
   familiarity: options.familiarity ?? 12,
 };
+
+      this.environment = {
+        phase: "day",
+        weather: "clear",
+        warmth: 62,
+        calm: 70,
+      };
             this.storageKey = `jive.memory.${this.name.toLowerCase()}`;
 
       this.memory = this.loadMemory() || {
@@ -129,7 +136,9 @@
         this.saveMemory();
       }
 
+            this.updateEnvironment();
       this.driftMotivations(deltaMs);
+      this.applyEnvironmentEffects();
       this.deriveEmotion();
       this.chooseAction(forceReason);
 
@@ -143,6 +152,61 @@
       }
 
       return this.getState();
+    }
+
+    updateEnvironment() {
+      const hour = new Date().getHours();
+
+      if (hour >= 6 && hour < 12) {
+        this.environment.phase = "morning";
+      } else if (hour >= 12 && hour < 18) {
+        this.environment.phase = "day";
+      } else if (hour >= 18 && hour < 22) {
+        this.environment.phase = "evening";
+      } else {
+        this.environment.phase = "night";
+      }
+
+      const weatherRoll = Math.sin(Date.now() / 900000);
+
+      if (weatherRoll > 0.55) {
+        this.environment.weather = "breezy";
+      } else if (weatherRoll < -0.55) {
+        this.environment.weather = "soft rain";
+      } else {
+        this.environment.weather = "clear";
+      }
+
+      this.environment.warmth =
+        this.environment.phase === "night" ? 48 :
+        this.environment.phase === "morning" ? 58 :
+        this.environment.phase === "evening" ? 56 :
+        68;
+
+      this.environment.calm =
+        this.environment.weather === "soft rain" ? 82 :
+        this.environment.weather === "breezy" ? 58 :
+        72;
+    }
+
+    applyEnvironmentEffects() {
+      if (this.environment.phase === "night") {
+        this.motives.energy = clamp(this.motives.energy - 0.18);
+        this.motives.comfort = clamp(this.motives.comfort + 0.12);
+      }
+
+      if (this.environment.phase === "morning") {
+        this.motives.curiosity = clamp(this.motives.curiosity + 0.16);
+      }
+
+      if (this.environment.weather === "soft rain") {
+        this.motives.comfort = clamp(this.motives.comfort + 0.18);
+      }
+
+      if (this.environment.weather === "breezy") {
+        this.motives.curiosity = clamp(this.motives.curiosity + 0.12);
+        this.motives.playfulness = clamp(this.motives.playfulness + 0.08);
+      }
     }
 
     driftMotivations(deltaMs) {
@@ -307,6 +371,7 @@ this.relationship.bond = clamp(this.relationship.bond + 2);
         thought: this.currentThought,
         motives: { ...this.motives },
         relationship: { ...this.relationship },
+                environment: { ...this.environment },
         memory: { ...this.memory },
         events: [...this.events],
       };
