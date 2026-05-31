@@ -353,6 +353,7 @@
 
     getMoodValues() {
       const emotion = this.state?.emotion || "calm";
+      const action = this.state?.action || "idling";
       const motives = this.state?.motives || {};
 
       const energy = motives.energy ?? 60;
@@ -362,6 +363,7 @@
 
       return {
         emotion,
+        action,
         energy,
         affection,
         curiosity,
@@ -380,7 +382,11 @@
       const sleepyDrop = mood.emotion === "sleepy" ? 0.26 : 0;
       const excitedLift = mood.emotion === "excited" ? -0.16 : 0;
       const playBounce = mood.emotion === "playful" ? Math.sin(t * 0.09) * 2.2 : 0;
-
+      const isResting = mood.action === "resting";
+const isInvestigating = mood.action === "investigating";
+const isLookingOver = mood.action === "looking over";
+const isSoftBreathing = mood.action === "soft breathing";
+const isPlaySeeking = mood.action === "looking for play";
             let reactionLift = 0;
       let reactionLean = 0;
       let reactionTurn = 0;
@@ -403,7 +409,12 @@
         reactionTurn = -0.32 * reactionValue;
       }
 
-      this.root.translate.y = 10 + playBounce + reactionLift;
+      this.root.translate.y =
+  10 +
+  playBounce +
+  reactionLift +
+  (isResting ? 9 : 0) +
+  (isPlaySeeking ? Math.sin(t * 0.12) * 2 : 0);
       this.body.scale = {
         x: 1 + breath,
         y: 1 - breath * 0.45,
@@ -414,10 +425,17 @@
         -0.04 + curiousTilt + this.pointer.x * 0.1 + reactionLean;
 
       this.headAnchor.rotate.x =
-        sleepyDrop + this.pointer.y * 0.08;
+  sleepyDrop +
+  this.pointer.y * 0.08 +
+  (isResting ? 0.28 : 0) +
+  (isInvestigating ? -0.18 : 0);
 
       this.headAnchor.translate.y =
-        -24 + sleepyDrop * 22 + excitedLift * 10;
+  -24 +
+  sleepyDrop * 22 +
+  excitedLift * 10 +
+  (isResting ? 10 : 0) +
+  (isInvestigating ? -4 : 0);
 
       const wagIntensity =
         mood.emotion === "excited"
@@ -473,7 +491,33 @@
       } else {
         this.root.rotate.z = 0;
       }
+      if (isResting) {
+  this.body.scale = {
+    x: 1.1,
+    y: 0.72,
+    z: 1,
+  };
 
+  this.tailAnchor.rotate.z = -0.88 + Math.sin(t * 0.015) * 0.035;
+}
+
+if (isInvestigating) {
+  this.muzzle.translate.z = 17;
+  this.headAnchor.rotate.z += Math.sin(t * 0.05) * 0.08;
+}
+
+if (isSoftBreathing) {
+  this.body.scale = {
+    x: 1 + Math.sin(t * 0.03) * 0.045,
+    y: 1 - Math.sin(t * 0.03) * 0.025,
+    z: 1,
+  };
+}
+
+if (isPlaySeeking) {
+  this.tailAnchor.rotate.z += Math.sin(t * 0.2) * 0.18;
+  this.headAnchor.rotate.z += Math.sin(t * 0.11) * 0.08;
+}
       if (mood.emotion === "sleepy") {
         this.tailAnchor.rotate.z = -0.7 + Math.sin(t * 0.02) * 0.05;
         this.leftEye.scale = { x: 1, y: 0.28, z: 1 };
@@ -501,10 +545,14 @@
       if (mood.emotion === "uncertain") {
 
       if (mood.emotion === "uncertain") {
-        this.root.rotate.y = Math.sin(t * 0.025) * 0.08 - 0.12;
-      } else {
-                this.root.rotate.y = Math.sin(t * 0.015) * 0.04 + reactionTurn;
-      }
+  this.root.rotate.y = Math.sin(t * 0.025) * 0.08 - 0.12 + reactionTurn;
+} else if (isLookingOver) {
+  this.root.rotate.y = -0.28 + Math.sin(t * 0.025) * 0.04 + reactionTurn;
+} else if (isInvestigating) {
+  this.root.rotate.y = 0.18 + Math.sin(t * 0.04) * 0.08 + reactionTurn;
+} else {
+  this.root.rotate.y = Math.sin(t * 0.015) * 0.04 + reactionTurn;
+}
     }
 
     animate() {
