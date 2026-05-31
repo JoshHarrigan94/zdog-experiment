@@ -281,3 +281,41 @@ height: fit-content;
 .companion-stage[data-emotion="curious"] {
   box-shadow: inset 0 0 80px rgba(255,210,140,0.12);
 }
+
+.companion-stage {
+  position: relative;
+  overflow: hidden;
+}
+
+.floating-feedback {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: var(--text);
+  font-size: 0.85rem;
+  backdrop-filter: blur(12px);
+  animation: floatFeedback 900ms ease forwards;
+}
+
+@keyframes floatFeedback {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.92);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -55%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -95%) scale(0.96);
+  }
+}
