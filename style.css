@@ -319,3 +319,71 @@ height: fit-content;
     transform: translate(-50%, -95%) scale(0.96);
   }
 }
+.companion-stage[data-phase="morning"] {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,214,155,0.18), transparent 35%),
+    linear-gradient(180deg, #152133 0%, #0c1220 100%);
+}
+
+.companion-stage[data-phase="day"] {
+  background:
+    radial-gradient(circle at center, rgba(110,231,255,0.14), transparent 45%),
+    linear-gradient(180deg, #111827 0%, #0c1220 100%);
+}
+
+.companion-stage[data-phase="evening"] {
+  background:
+    radial-gradient(circle at 70% 20%, rgba(255,145,110,0.18), transparent 38%),
+    linear-gradient(180deg, #1a1726 0%, #0c1220 100%);
+}
+
+.companion-stage[data-phase="night"] {
+  background:
+    radial-gradient(circle at 50% 10%, rgba(150,170,255,0.12), transparent 36%),
+    linear-gradient(180deg, #090d18 0%, #05070d 100%);
+}
+
+.companion-stage[data-weather="soft rain"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(120deg, transparent 0 45%, rgba(255,255,255,0.5) 48%, transparent 52% 100%);
+  background-size: 26px 26px;
+  animation: rainDrift 900ms linear infinite;
+}
+
+.companion-stage[data-weather="breezy"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.12;
+  background:
+    radial-gradient(circle at 20% 60%, white 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 35%, white 0 1px, transparent 2px),
+    radial-gradient(circle at 45% 20%, white 0 1px, transparent 2px);
+  animation: breezeFloat 2800ms ease-in-out infinite;
+}
+
+@keyframes rainDrift {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: -26px 26px;
+  }
+}
+
+@keyframes breezeFloat {
+  0%, 100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(18px);
+  }
+}
