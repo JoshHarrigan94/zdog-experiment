@@ -273,35 +273,113 @@
       this.emotion = "calm";
     }
 
-    chooseAction(reason = "ambient") {
+        chooseAction(reason = "ambient") {
       const m = this.motives;
+      const r = this.relationship;
+      const e = this.environment || {};
 
-      if (this.emotion === "sleepy") {
-        this.currentAction = "resting";
-        this.currentThought = "I might curl up for a while.";
-      } else if (this.emotion === "uncertain") {
-        this.currentAction = "watching carefully";
-        this.currentThought = "Something feels unfamiliar.";
-      } else if (this.emotion === "excited") {
-        this.currentAction = "tail wagging";
-        this.currentThought = "You are here. This is excellent.";
-      } else if (this.emotion === "curious") {
-        this.currentAction = "investigating";
-        this.currentThought = "What is that? I should inspect it.";
-      } else if (this.emotion === "playful") {
-        this.currentAction = "looking for play";
-        this.currentThought = "There should be a toy around here somewhere.";
-      } else if (this.emotion === "settled") {
-        this.currentAction = "soft breathing";
-        this.currentThought = "This place feels safe.";
-      } else {
-        this.currentAction = "idling";
-        this.currentThought = "I am here. I am listening.";
-      }
+      const candidates = [
+        {
+          action: "resting",
+          thought: "I might curl up for a while.",
+          weight:
+            (100 - m.energy) * 1.5 +
+            m.comfort * 0.25 +
+            (e.phase === "night" ? 35 : 0),
+        },
+        {
+          action: "investigating",
+          thought: "What is that? I should inspect it.",
+          weight:
+            m.curiosity * 1.2 +
+            r.familiarity * 0.2 +
+            (e.weather === "breezy" ? 18 : 0),
+        },
+        {
+          action: "tail wagging",
+          thought: "You are here. This is excellent.",
+          weight:
+            m.affection * 1.1 +
+            r.bond * 0.65 +
+            m.playfulness * 0.3,
+        },
+        {
+          action: "looking for play",
+          thought: "There should be a toy around here somewhere.",
+          weight:
+            m.playfulness * 1.25 +
+            m.energy * 0.45 +
+            r.bond * 0.25,
+        },
+        {
+          action: "soft breathing",
+          thought: "This place feels safe.",
+          weight:
+            m.comfort * 1.1 +
+            r.trust * 0.6 +
+            (e.weather === "soft rain" ? 24 : 0),
+        },
+        {
+          action: "watching carefully",
+          thought: "Something feels unfamiliar.",
+          weight:
+            (100 - m.confidence) * 1.2 +
+            (100 - m.comfort) * 0.6 -
+            r.trust * 0.35,
+        },
+      ];
+
+      const selected = this.weightedChoice(candidates);
+
+      this.currentAction = selected.action;
+      this.currentThought = selected.thought;
 
       if (reason === "manual") {
         this.currentThought = "Something nudged the world forward.";
       }
+
+      if (reason === "pet") {
+        this.currentAction = "leaning into your hand";
+        this.currentThought = "That feels safe.";
+      }
+
+      if (reason === "play") {
+        this.currentAction = "springing into play";
+        this.currentThought = "Yes. This is the good game.";
+      }
+
+      if (reason === "comfort") {
+        this.currentAction = "settling closer";
+        this.currentThought = "I can rest near you.";
+      }
+
+      if (reason === "call") {
+        this.currentAction = "looking over";
+        this.currentThought = "I heard you.";
+      }
+    }
+
+    weightedChoice(candidates) {
+      const safeCandidates = candidates.map((candidate) => ({
+        ...candidate,
+        weight: Math.max(1, candidate.weight),
+      }));
+
+      const total = safeCandidates.reduce((sum, candidate) => {
+        return sum + candidate.weight;
+      }, 0);
+
+      let roll = Math.random() * total;
+
+      for (const candidate of safeCandidates) {
+        roll -= candidate.weight;
+
+        if (roll <= 0) {
+          return candidate;
+        }
+      }
+
+      return safeCandidates[0];
     }
 
     interact(type = "attention") {
