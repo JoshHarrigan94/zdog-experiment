@@ -19,7 +19,8 @@
   const metricCuriosity = document.getElementById("metric-curiosity");
   const metricAffection = document.getElementById("metric-affection");
   const metricComfort = document.getElementById("metric-comfort");
-
+  const metricTrust = document.getElementById("metric-trust");
+const metricBond = document.getElementById("metric-bond");
   const tickButton = document.getElementById("tick-button");
   const clearLogButton = document.getElementById("clear-log-button");
   const eventLog = document.getElementById("event-log");
@@ -71,7 +72,8 @@ const renderer = new window.RaisinRenderer(companionStage);
     renderMetric(metricCuriosity, state.motives.curiosity);
     renderMetric(metricAffection, state.motives.affection);
     renderMetric(metricComfort, state.motives.comfort);
-
+    renderMetric(metricTrust, state.relationship.trust);
+renderMetric(metricBond, state.relationship.bond);
     companionStage.dataset.emotion = state.emotion;
   }
 
