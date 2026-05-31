@@ -39,7 +39,11 @@
       this.emotion = "waking";
       this.currentAction = "booting";
       this.currentThought = "I am becoming aware of the room.";
-
+      this.relationship = {
+  trust: options.trust ?? 34,
+  bond: options.bond ?? 18,
+  familiarity: options.familiarity ?? 12,
+};
             this.storageKey = `jive.memory.${this.name.toLowerCase()}`;
 
       this.memory = this.loadMemory() || {
@@ -246,28 +250,40 @@
       this.memory.favouriteInteraction = Object.entries(
         this.memory.interactionCounts
       ).sort((a, b) => b[1] - a[1])[0][0];
-
+    this.relationship.familiarity = clamp(this.relationship.familiarity + 2);
       if (type === "pet") {
         this.motives.affection = clamp(this.motives.affection + 12);
         this.motives.comfort = clamp(this.motives.comfort + 8);
         this.motives.confidence = clamp(this.motives.confidence + 4);
-      }
+         this.relationship.trust = clamp(this.relationship.trust + 3);
+this.relationship.bond = clamp(this.relationship.bond + 2);
+      
+       }
 
       if (type === "call") {
         this.motives.curiosity = clamp(this.motives.curiosity + 10);
         this.motives.affection = clamp(this.motives.affection + 4);
+      this.relationship.familiarity = clamp(this.relationship.familiarity + 3);
+this.relationship.bond = clamp(this.relationship.bond + 1);
+      
       }
 
       if (type === "play") {
         this.motives.playfulness = clamp(this.motives.playfulness + 12);
         this.motives.energy = clamp(this.motives.energy - 8);
         this.motives.affection = clamp(this.motives.affection + 6);
+        this.relationship.bond = clamp(this.relationship.bond + 4);
+this.relationship.trust = clamp(this.relationship.trust + 1);
+      
       }
 
       if (type === "comfort") {
         this.motives.comfort = clamp(this.motives.comfort + 14);
         this.motives.confidence = clamp(this.motives.confidence + 8);
         this.motives.energy = clamp(this.motives.energy + 4);
+      this.relationship.trust = clamp(this.relationship.trust + 5);
+this.relationship.bond = clamp(this.relationship.bond + 2);
+      
       }
 
       this.deriveEmotion();
@@ -290,6 +306,7 @@
         action: this.currentAction,
         thought: this.currentThought,
         motives: { ...this.motives },
+        relationship: { ...this.relationship },
         memory: { ...this.memory },
         events: [...this.events],
       };
