@@ -30,6 +30,13 @@
     throw new Error("Jive engine was not found. Check jive.js is loaded before app.js.");
   }
 
+if (!window.RaisinRenderer) {
+  engineStatus.textContent = "Raisin renderer failed to load.";
+  throw new Error("RaisinRenderer was not found. Check raisinRenderer.js is loaded before app.js.");
+}
+
+const renderer = new window.RaisinRenderer(companionStage);
+
   const engine = new window.Jive.Engine({
     tickRate: 2200,
   });
@@ -53,7 +60,9 @@
   }
 
   function renderState(state) {
-    engineStatus.textContent = `Jive engine running · ${state.name} is ${state.action}`;
+  renderer.setState(state);
+
+  engineStatus.textContent = `Jive engine running · ${state.name} is ${state.action}`;
 
     currentEmotion.textContent = capitalise(state.emotion);
     currentThought.textContent = state.thought;
@@ -160,7 +169,8 @@
   engine.start();
 
   window.ProjectJive = {
-    engine,
-    raisin,
-  };
+  engine,
+  raisin,
+  renderer,
+};
 })();
