@@ -25,7 +25,17 @@ const metricBond = document.getElementById("metric-bond");
   const clearLogButton = document.getElementById("clear-log-button");
   const eventLog = document.getElementById("event-log");
   const companionStage = document.getElementById("companion-stage");
+  function showFloatingFeedback(text) {
+  const bubble = document.createElement("div");
+  bubble.className = "floating-feedback";
+  bubble.textContent = text;
 
+  companionStage.appendChild(bubble);
+
+  window.setTimeout(() => {
+    bubble.remove();
+  }, 900);
+}
   if (!window.Jive) {
     engineStatus.textContent = "Jive failed to load.";
     throw new Error("Jive engine was not found. Check jive.js is loaded before app.js.");
@@ -39,8 +49,6 @@ if (window.RaisinRenderer) {
   console.warn("RaisinRenderer not found. App will run without renderer.");
   engineStatus.textContent = "Jive running without Raisin renderer.";
 }
-
-const renderer = new window.RaisinRenderer(companionStage);
 
   const engine = new window.Jive.Engine({
     tickRate: 2200,
