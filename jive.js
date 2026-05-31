@@ -40,16 +40,39 @@
       this.currentAction = "booting";
       this.currentThought = "I am becoming aware of the room.";
 
-      this.memory = {
+            this.storageKey = `jive.memory.${this.name.toLowerCase()}`;
+
+      this.memory = this.loadMemory() || {
         totalTicks: 0,
         totalInteractions: 0,
         lastInteraction: null,
         favouriteInteraction: null,
         interactionCounts: {},
+        firstMetAt: now(),
+        lastSeenAt: now(),
       };
 
       this.events = [];
       this.listeners = {};
+    }
+
+        loadMemory() {
+      try {
+        const raw = window.localStorage.getItem(this.storageKey);
+        return raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        console.warn("Jive memory could not be loaded.", error);
+        return null;
+      }
+    }
+
+    saveMemory() {
+      try {
+        this.memory.lastSeenAt = now();
+        window.localStorage.setItem(this.storageKey, JSON.stringify(this.memory));
+      } catch (error) {
+        console.warn("Jive memory could not be saved.", error);
+      }
     }
 
     on(eventName, callback) {
@@ -98,6 +121,9 @@
       this.lastTickAt = currentTime;
 
       this.memory.totalTicks += 1;
+            if (this.memory.totalTicks % 4 === 0) {
+        this.saveMemory();
+      }
 
       this.driftMotivations(deltaMs);
       this.deriveEmotion();
@@ -246,7 +272,7 @@
 
       this.deriveEmotion();
       this.chooseAction(type);
-
+      this.saveMemory();
       this.emit("event", {
         message: `${this.name} received: ${type}.`,
         interaction: type,
