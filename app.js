@@ -1,13 +1,3 @@
-/*
-  Project Jive
-  App connection layer v0.1
-
-  Connects:
-  jive.js engine
-  ↓
-  index.html interface
-*/
-
 (function () {
   "use strict";
 
@@ -20,35 +10,37 @@
   const metricAffection = document.getElementById("metric-affection");
   const metricComfort = document.getElementById("metric-comfort");
   const metricTrust = document.getElementById("metric-trust");
-const metricBond = document.getElementById("metric-bond");
+  const metricBond = document.getElementById("metric-bond");
+
   const tickButton = document.getElementById("tick-button");
   const clearLogButton = document.getElementById("clear-log-button");
   const eventLog = document.getElementById("event-log");
   const companionStage = document.getElementById("companion-stage");
+
   function showFloatingFeedback(text) {
-  const bubble = document.createElement("div");
-  bubble.className = "floating-feedback";
-  bubble.textContent = text;
+    const bubble = document.createElement("div");
+    bubble.className = "floating-feedback";
+    bubble.textContent = text;
+    companionStage.appendChild(bubble);
 
-  companionStage.appendChild(bubble);
-
-  window.setTimeout(() => {
-    bubble.remove();
-  }, 900);
-}
-  if (!window.Jive) {
-    engineStatus.textContent = "Jive failed to load.";
-    throw new Error("Jive engine was not found. Check jive.js is loaded before app.js.");
+    window.setTimeout(() => {
+      bubble.remove();
+    }, 900);
   }
 
-let renderer = null;
+  if (!window.Jive) {
+    engineStatus.textContent = "Jive failed to load.";
+    throw new Error("Jive engine was not found.");
+  }
 
-if (window.RaisinRenderer) {
-  renderer = new window.RaisinRenderer(companionStage);
-} else {
-  console.warn("RaisinRenderer not found. App will run without renderer.");
-  engineStatus.textContent = "Jive running without Raisin renderer.";
-}
+  let renderer = null;
+
+  if (window.RaisinRenderer) {
+    renderer = new window.RaisinRenderer(companionStage);
+  } else {
+    console.warn("RaisinRenderer not found. App will run without renderer.");
+    engineStatus.textContent = "Jive running without Raisin renderer.";
+  }
 
   const engine = new window.Jive.Engine({
     tickRate: 2200,
@@ -65,29 +57,35 @@ if (window.RaisinRenderer) {
   });
 
   function round(value) {
-    return Math.round(value);
+    return Math.round(value ?? 0);
   }
 
   function renderMetric(element, value) {
-  const next = round(value);
-  const previous = Number(element.textContent);
+    if (!element) return;
 
-  element.textContent = next;
+    const next = round(value);
+    const previous = Number(element.textContent);
 
-  if (!Number.isNaN(previous) && previous !== next) {
-    element.classList.remove("bump");
-    void element.offsetWidth;
-    element.classList.add("bump");
+    element.textContent = next;
+
+    if (!Number.isNaN(previous) && previous !== next) {
+      element.classList.remove("bump");
+      void element.offsetWidth;
+      element.classList.add("bump");
+    }
   }
-}
+
+  function capitalise(value) {
+    if (!value) return "";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
 
   function renderState(state) {
-  if (renderer) {
-  renderer.setState(state);
-}
+    if (renderer) {
+      renderer.setState(state);
+    }
 
-  engineStatus.textContent = `Jive engine running · ${state.name} is ${state.action}`;
-
+    engineStatus.textContent = `Jive engine running · ${state.name} is ${state.action}`;
     currentEmotion.textContent = capitalise(state.emotion);
     currentThought.textContent = state.thought;
 
@@ -95,10 +93,15 @@ if (window.RaisinRenderer) {
     renderMetric(metricCuriosity, state.motives.curiosity);
     renderMetric(metricAffection, state.motives.affection);
     renderMetric(metricComfort, state.motives.comfort);
-    renderMetric(metricTrust, state.relationship.trust);
-renderMetric(metricBond, state.relationship.bond);
+
+    if (state.relationship) {
+      renderMetric(metricTrust, state.relationship.trust);
+      renderMetric(metricBond, state.relationship.bond);
+    }
+
     companionStage.dataset.emotion = state.emotion;
-        if (state.environment) {
+
+    if (state.environment) {
       companionStage.dataset.phase = state.environment.phase;
       companionStage.dataset.weather = state.environment.weather;
     }
@@ -106,6 +109,7 @@ renderMetric(metricBond, state.relationship.bond);
 
   function renderEvent(event) {
     const item = document.createElement("li");
+
     const time = new Date(event.time).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -113,17 +117,11 @@ renderMetric(metricBond, state.relationship.bond);
     });
 
     item.textContent = `[${time}] ${event.message || event.type}`;
-
     eventLog.prepend(item);
 
     while (eventLog.children.length > 8) {
       eventLog.removeChild(eventLog.lastElementChild);
     }
-  }
-
-  function capitalise(value) {
-    if (!value) return "";
-    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
   function pulseStage() {
@@ -140,13 +138,8 @@ renderMetric(metricBond, state.relationship.bond);
     );
   }
 
-  raisin.on("state", (event) => {
-    renderState(event);
-  });
-
-  raisin.on("event", (event) => {
-    renderEvent(event);
-  });
+  raisin.on("state", renderState);
+  raisin.on("event", renderEvent);
 
   tickButton.addEventListener("click", () => {
     engine.tick("manual");
@@ -155,33 +148,28 @@ renderMetric(metricBond, state.relationship.bond);
 
   clearLogButton.addEventListener("click", () => {
     eventLog.innerHTML = "";
-    const totalInteractions = raisin.getState().memory.totalInteractions;
-
-renderEvent({
-  time: Date.now(),
-  message:
-    totalInteractions > 0
-      ? `Raisin remembers ${totalInteractions} moment${totalInteractions === 1 ? "" : "s"} with you.`
-      : "Raisin is meeting you for the first time.",
-});
+    renderEvent({
+      time: Date.now(),
+      message: "Event stream cleared.",
+    });
   });
 
-    let pressTimer = null;
+  let pressTimer = null;
   let pressStart = null;
   let lastTapAt = 0;
 
   function triggerInteraction(type) {
-  const labels = {
-    pet: "+ Affection",
-    play: "+ Playfulness",
-    comfort: "+ Comfort",
-    call: "Raisin noticed you",
-  };
+    const labels = {
+      pet: "+ Affection",
+      play: "+ Playfulness",
+      comfort: "+ Comfort",
+      call: "Raisin noticed you",
+    };
 
-  raisin.interact(type);
-  pulseStage();
-  showFloatingFeedback(labels[type] || type);
-}
+    raisin.interact(type);
+    pulseStage();
+    showFloatingFeedback(labels[type] || type);
+  }
 
   companionStage.addEventListener("pointerdown", (event) => {
     pressStart = {
@@ -212,19 +200,14 @@ renderEvent({
 
     if (distance > 55) {
       triggerInteraction("call");
-      pressStart = null;
-      return;
-    }
-
-    if (now - lastTapAt < 320) {
+    } else if (now - lastTapAt < 320) {
       triggerInteraction("play");
       lastTapAt = 0;
-      pressStart = null;
-      return;
+    } else {
+      triggerInteraction("pet");
+      lastTapAt = now;
     }
 
-    triggerInteraction("pet");
-    lastTapAt = now;
     pressStart = null;
   });
 
@@ -237,35 +220,22 @@ renderEvent({
     pressStart = null;
   });
 
-  window.addEventListener("keydown", (event) => {
-    if (event.key.toLowerCase() === "p") {
-      raisin.interact("pet");
-    }
-
-    if (event.key.toLowerCase() === "c") {
-      raisin.interact("call");
-    }
-
-    if (event.key.toLowerCase() === "t") {
-      raisin.interact("play");
-    }
-
-    if (event.key.toLowerCase() === "m") {
-      engine.tick("manual");
-    }
-  });
+  const totalInteractions = raisin.getState().memory.totalInteractions;
 
   renderEvent({
     time: Date.now(),
-    message: "App connected to Jive.",
+    message:
+      totalInteractions > 0
+        ? `Raisin remembers ${totalInteractions} moment${totalInteractions === 1 ? "" : "s"} with you.`
+        : "Raisin is meeting you for the first time.",
   });
 
   renderState(raisin.getState());
   engine.start();
 
   window.ProjectJive = {
-  engine,
-  raisin,
-  renderer,
-};
+    engine,
+    raisin,
+    renderer,
+  };
 })();
