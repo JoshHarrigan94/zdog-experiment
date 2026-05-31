@@ -387,3 +387,66 @@ height: fit-content;
     transform: translateX(18px);
   }
 }
+
+.stage-card {
+  position: relative;
+}
+
+.companion-stage::selection {
+  background: transparent;
+}
+
+.raisin-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 340px;
+  display: block;
+  cursor: grab;
+}
+
+.raisin-canvas:active {
+  cursor: grabbing;
+}
+
+.stage-card::after {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border-radius: 24px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 82%, rgba(255,255,255,0.08), transparent 28%),
+    radial-gradient(circle at 50% 20%, rgba(255,255,255,0.05), transparent 35%);
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+
+.mood-card h1 {
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.metric-card strong {
+  transition: transform 220ms ease;
+}
+
+.metric-card strong.bump {
+  transform: scale(1.16);
+}
+
+.companion-stage[data-weather="soft rain"] .raisin-canvas {
+  filter: saturate(0.88) brightness(0.95);
+}
+
+.companion-stage[data-weather="breezy"] .raisin-canvas {
+  animation: canvasBreathe 4200ms ease-in-out infinite;
+}
+
+@keyframes canvasBreathe {
+  0%, 100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(2px);
+  }
+}
