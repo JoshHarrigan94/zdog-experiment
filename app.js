@@ -31,9 +31,13 @@ const metricBond = document.getElementById("metric-bond");
     throw new Error("Jive engine was not found. Check jive.js is loaded before app.js.");
   }
 
-if (!window.RaisinRenderer) {
-  engineStatus.textContent = "Raisin renderer failed to load.";
-  throw new Error("RaisinRenderer was not found. Check raisinRenderer.js is loaded before app.js.");
+let renderer = null;
+
+if (window.RaisinRenderer) {
+  renderer = new window.RaisinRenderer(companionStage);
+} else {
+  console.warn("RaisinRenderer not found. App will run without renderer.");
+  engineStatus.textContent = "Jive running without Raisin renderer.";
 }
 
 const renderer = new window.RaisinRenderer(companionStage);
@@ -70,7 +74,9 @@ const renderer = new window.RaisinRenderer(companionStage);
 }
 
   function renderState(state) {
+  if (renderer) {
   renderer.setState(state);
+}
 
   engineStatus.textContent = `Jive engine running · ${state.name} is ${state.action}`;
 
