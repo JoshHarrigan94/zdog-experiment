@@ -2,558 +2,99 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Summit Pebble</title>
 
-  <script src="https://unpkg.com/zdog@1/dist/zdog.dist.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
 
-  <style>
-    * { box-sizing: border-box; }
+  <meta
+    name="description"
+    content="Project Jive — a tiny behaviour engine for living digital companions."
+  />
 
-    body {
-      margin: 0;
-      height: 100vh;
-      overflow: hidden;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background:
-        radial-gradient(circle at 30% 20%, #fff2c7 0 12%, transparent 34%),
-        radial-gradient(circle at 75% 18%, #d9efff 0 10%, transparent 32%),
-        linear-gradient(180deg, #eaf7ff 0%, #f9f1dd 48%, #d9e6c7 100%);
-      color: #24301f;
-    }
+  <title>Project Jive</title>
 
-    header {
-      position: fixed;
-      top: 16px;
-      left: 16px;
-      z-index: 10;
-      padding: 14px 16px;
-      border-radius: 22px;
-      background: rgba(255,255,255,0.65);
-      backdrop-filter: blur(14px);
-      box-shadow: 0 18px 44px rgba(36,48,31,0.14);
-    }
+  <link rel="stylesheet" href="style.css" />
 
-    h1 {
-      margin: 0;
-      font-size: 1.2rem;
-      letter-spacing: -0.05em;
-    }
-
-    .meta {
-      margin-top: 5px;
-      font-size: 0.82rem;
-      opacity: 0.72;
-    }
-
-    canvas {
-      width: 100vw;
-      height: 100vh;
-      display: block;
-      touch-action: none;
-      cursor: crosshair;
-    }
-
-    .controls {
-      position: fixed;
-      left: 50%;
-      bottom: 18px;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 10px;
-      z-index: 10;
-      padding: 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.62);
-      backdrop-filter: blur(14px);
-      box-shadow: 0 18px 44px rgba(36,48,31,0.15);
-    }
-
-    button {
-      border: 0;
-      border-radius: 999px;
-      padding: 11px 15px;
-      font-weight: 800;
-      color: white;
-      background: #24301f;
-    }
-
-    button:active { transform: scale(0.96); }
-
-    .hint {
-      position: fixed;
-      right: 16px;
-      top: 16px;
-      z-index: 10;
-      max-width: 220px;
-      text-align: right;
-      font-size: 0.8rem;
-      opacity: 0.62;
-      line-height: 1.35;
-    }
-
-    @media (max-width: 640px) {
-      .hint { display: none; }
-      .controls {
-        width: calc(100vw - 24px);
-        justify-content: space-between;
-      }
-      button { flex: 1; font-size: 0.8rem; padding: 11px 8px; }
-    }
-  </style>
+  <script src="jive.js" defer></script>
+  <script src="app.js" defer></script>
 </head>
 
 <body>
-  <header>
-    <h1>Summit Pebble</h1>
-    <div class="meta">
-      Score: <strong id="score">0</strong> · Pebbles: <strong id="count">0</strong>
-    </div>
-  </header>
-
-  <div class="hint">Tap to drop pebbles. Drag them. Turn wind on for soft ambience.</div>
-
-  <canvas class="zdog-canvas"></canvas>
-
-  <div class="controls">
-    <button id="dropBtn">Drop</button>
-    <button id="windBtn">Wind Off</button>
-    <button id="resetBtn">Reset</button>
-  </div>
-
-  <script>
-    const canvas = document.querySelector(".zdog-canvas");
-    const scoreEl = document.getElementById("score");
-    const countEl = document.getElementById("count");
-    const dropBtn = document.getElementById("dropBtn");
-    const windBtn = document.getElementById("windBtn");
-    const resetBtn = document.getElementById("resetBtn");
-
-    const TAU = Zdog.TAU;
-    const Engine = Matter.Engine;
-    const World = Matter.World;
-    const Bodies = Matter.Bodies;
-    const Body = Matter.Body;
-    const Constraint = Matter.Constraint;
-    const Events = Matter.Events;
-    const Mouse = Matter.Mouse;
-    const MouseConstraint = Matter.MouseConstraint;
-
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    let score = 0;
-    let pebbles = [];
-    let soundReady = false;
-    let windOn = false;
-
-    const engine = Engine.create();
-    engine.gravity.y = 0.72;
-
-    const illo = new Zdog.Illustration({
-      element: canvas,
-      dragRotate: false,
-      rotate: { x: -0.28, y: -0.25 },
-      zoom: 1
-    });
-
-    const scene = new Zdog.Anchor({ addTo: illo });
-    const pebbleLayer = new Zdog.Anchor({ addTo: illo });
-
-    function makeSynths() {
-      window.tapSynth = new Tone.MembraneSynth({
-        pitchDecay: 0.02,
-        octaves: 2,
-        envelope: { attack: 0.001, decay: 0.18, sustain: 0.01, release: 0.08 }
-      }).toDestination();
-
-      window.chimeSynth = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "sine" },
-        envelope: { attack: 0.01, decay: 0.18, sustain: 0.04, release: 0.5 }
-      }).toDestination();
-
-      window.wind = new Tone.Noise("pink").start();
-      window.windFilter = new Tone.Filter(520, "lowpass").toDestination();
-      window.windGain = new Tone.Gain(0).toDestination();
-      window.wind.connect(window.windFilter);
-      window.windFilter.connect(window.windGain);
-    }
-
-    async function readySound() {
-      if (soundReady) return;
-      await Tone.start();
-      makeSynths();
-      soundReady = true;
-    }
-
-    function playTap(power = 1) {
-      if (!soundReady) return;
-      const notes = ["C3", "E3", "G3", "A3", "C4"];
-      const note = notes[Math.floor(Math.random() * notes.length)];
-      tapSynth.triggerAttackRelease(note, "16n", undefined, Math.min(0.9, 0.18 + power * 0.22));
-    }
-
-    function playChime() {
-      if (!soundReady) return;
-      chimeSynth.triggerAttackRelease(["C4", "E4", "G4"], "16n", undefined, 0.14);
-    }
-
-    function toggleWind() {
-      readySound();
-      windOn = !windOn;
-      windBtn.textContent = windOn ? "Wind On" : "Wind Off";
-      if (soundReady) {
-        windGain.gain.rampTo(windOn ? 0.035 : 0, 0.5);
-      }
-    }
-
-    function zShape(opts) { return new Zdog.Shape(opts); }
-    function zEllipse(opts) { return new Zdog.Ellipse(opts); }
-    function zCone(opts) { return new Zdog.Cone(opts); }
-    function zCylinder(opts) { return new Zdog.Cylinder(opts); }
-    function zBox(opts) { return new Zdog.Box(opts); }
-
-    function mountainLayer(path, color, stroke, z, y) {
-      zShape({
-        addTo: scene,
-        path,
-        closed: true,
-        stroke,
-        fill: true,
-        color,
-        translate: { z, y }
-      });
-    }
-
-    function drawMountain() {
-      mountainLayer([
-        { x: -250, y: 110 }, { x: -190, y: 58 }, { x: -120, y: 18 },
-        { x: -40, y: -12 }, { x: 28, y: -20 }, { x: 108, y: 12 },
-        { x: 188, y: 62 }, { x: 250, y: 110 }
-      ], "#9eaa65", 35, -38, 35);
-
-      mountainLayer([
-        { x: -230, y: 130 }, { x: -170, y: 82 }, { x: -95, y: 48 },
-        { x: -25, y: 30 }, { x: 48, y: 36 }, { x: 125, y: 66 },
-        { x: 220, y: 130 }
-      ], "#6f8748", 34, 4, 62);
-
-      mountainLayer([
-        { x: -150, y: 76 }, { x: -92, y: 18 }, { x: -35, y: -38 },
-        { x: 20, y: -55 }, { x: 78, y: -26 }, { x: 125, y: 54 },
-        { x: 82, y: 80 }, { x: -72, y: 82 }
-      ], "#c5bb72", 25, 52, 20);
-
-      mountainLayer([
-        { x: -80, y: 20 }, { x: -35, y: -58 }, { x: 15, y: -94 },
-        { x: 64, y: -50 }, { x: 92, y: 22 }, { x: 40, y: 48 },
-        { x: -36, y: 45 }
-      ], "#d4ca7b", 20, 90, 0);
-
-      zShape({
-        addTo: scene,
-        path: [
-          { x: -165, y: 128 }, { x: -120, y: 90 }, { x: -72, y: 55 },
-          { x: -28, y: 18 }, { x: 2, y: -25 }, { x: 16, y: -78 }
-        ],
-        stroke: 7,
-        color: "#eadca7",
-        translate: { z: 128 }
-      });
-
-      zShape({
-        addTo: scene,
-        path: [
-          { x: 145, y: 124 }, { x: 104, y: 90 }, { x: 72, y: 56 },
-          { x: 45, y: 18 }, { x: 20, y: -30 }, { x: 16, y: -78 }
-        ],
-        stroke: 6,
-        color: "#deca8e",
-        translate: { z: 132 }
-      });
-
-      zCylinder({
-        addTo: scene,
-        diameter: 24,
-        length: 44,
-        stroke: false,
-        color: "#e6e0d0",
-        backface: "#aaa394",
-        translate: { x: 16, y: -105, z: 150 },
-        rotate: { x: TAU / 4 }
-      });
-
-      for (let i = 0; i < 28; i++) {
-        const a = Math.random() * TAU;
-        const r = 12 + Math.random() * 34;
-        zEllipse({
-          addTo: scene,
-          diameter: 5 + Math.random() * 7,
-          stroke: 4,
-          color: i % 2 ? "#77776d" : "#918d82",
-          translate: {
-            x: 16 + Math.cos(a) * r,
-            y: -88 + Math.sin(a) * r * 0.32,
-            z: 142 + Math.random() * 14
-          },
-          rotate: { x: TAU / 4 }
-        });
-      }
-
-      zBox({
-        addTo: scene,
-        width: 540,
-        height: 28,
-        depth: 300,
-        stroke: false,
-        color: "#9a704c",
-        leftFace: "#745137",
-        rightFace: "#8a6040",
-        topFace: "#b68a5d",
-        bottomFace: "#5d402b",
-        translate: { y: 170, z: 28 }
-      });
-
-      zShape({
-        addTo: scene,
-        path: [
-          { x: -230, y: 72 }, { x: -150, y: 68 }, { x: -70, y: 74 },
-          { x: 20, y: 66 }, { x: 105, y: 74 }, { x: 220, y: 70 }
-        ],
-        stroke: 16,
-        color: "rgba(255,255,255,0.34)",
-        translate: { z: 170 }
-      });
-
-      zEllipse({
-        addTo: scene,
-        diameter: 60,
-        stroke: 22,
-        color: "rgba(255,255,255,0.75)",
-        fill: true,
-        translate: { x: -155, y: -142, z: 35 }
-      });
-
-      zEllipse({
-        addTo: scene,
-        diameter: 48,
-        stroke: 18,
-        color: "rgba(255,255,255,0.66)",
-        fill: true,
-        translate: { x: -195, y: -134, z: 35 }
-      });
-
-      zEllipse({
-        addTo: scene,
-        diameter: 52,
-        stroke: 18,
-        color: "rgba(255,255,255,0.62)",
-        fill: true,
-        translate: { x: 160, y: -130, z: 20 }
-      });
-    }
-
-    drawMountain();
-
-    let ground, leftWall, rightWall, summitSensor;
-
-    function makeWorldBounds() {
-      World.clear(engine.world, false);
-
-      ground = Bodies.rectangle(width / 2, height - 60, width * 1.2, 40, {
-        isStatic: true,
-        restitution: 0.45,
-        friction: 0.45
-      });
-
-      leftWall = Bodies.rectangle(-30, height / 2, 60, height, { isStatic: true });
-      rightWall = Bodies.rectangle(width + 30, height / 2, 60, height, { isStatic: true });
-
-      const slopeA = Bodies.rectangle(width * 0.36, height * 0.66, 260, 24, {
-        isStatic: true,
-        angle: -0.38,
-        restitution: 0.35,
-        friction: 0.18
-      });
-
-      const slopeB = Bodies.rectangle(width * 0.64, height * 0.66, 260, 24, {
-        isStatic: true,
-        angle: 0.38,
-        restitution: 0.35,
-        friction: 0.18
-      });
-
-      summitSensor = Bodies.rectangle(width / 2, height * 0.39, 110, 34, {
-        isStatic: true,
-        isSensor: true,
-        label: "summit"
-      });
-
-      World.add(engine.world, [ground, leftWall, rightWall, slopeA, slopeB, summitSensor]);
-
-      const mouse = Mouse.create(canvas);
-      const mouseConstraint = MouseConstraint.create(engine, {
-        mouse,
-        constraint: {
-          stiffness: 0.16,
-          render: { visible: false }
-        }
-      });
-
-      World.add(engine.world, mouseConstraint);
-    }
-
-    function screenToWorld(e) {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
-    }
-
-    function createPebble(x = width / 2, y = 90) {
-      readySound();
-
-      const radius = 11 + Math.random() * 9;
-      const body = Bodies.circle(x, y, radius, {
-        restitution: 0.62,
-        friction: 0.22,
-        frictionAir: 0.006,
-        density: 0.002,
-        label: "pebble"
-      });
-
-      const colors = ["#796f61", "#8e8678", "#696d62", "#a08870", "#5f6258"];
-      const color = colors[Math.floor(Math.random() * colors.length)];
-
-      const zdog = zEllipse({
-        addTo: pebbleLayer,
-        diameter: radius * 2,
-        stroke: radius * 0.65,
-        color,
-        fill: true,
-        translate: { x: 0, y: 0, z: 190 },
-        rotate: { x: TAU / 4 }
-      });
-
-      const shine = zEllipse({
-        addTo: zdog,
-        diameter: radius * 0.45,
-        stroke: 2,
-        color: "rgba(255,255,255,0.35)",
-        fill: true,
-        translate: { x: -radius * 0.32, y: -radius * 0.36, z: 6 }
-      });
-
-      pebbles.push({ body, zdog, shine, scored: false, radius });
-      World.add(engine.world, body);
-
-      countEl.textContent = pebbles.length;
-      playChime();
-    }
-
-    function reset() {
-      pebbles.forEach(p => {
-        World.remove(engine.world, p.body);
-        p.zdog.remove();
-      });
-      pebbles = [];
-      score = 0;
-      scoreEl.textContent = score;
-      countEl.textContent = 0;
-      playChime();
-    }
-
-    Events.on(engine, "collisionStart", event => {
-      event.pairs.forEach(pair => {
-        const a = pair.bodyA;
-        const b = pair.bodyB;
-
-        const pebble = a.label === "pebble" ? a : b.label === "pebble" ? b : null;
-        const other = pebble === a ? b : a;
-
-        if (!pebble) return;
-
-        const speed = Math.hypot(pebble.velocity.x, pebble.velocity.y);
-        if (speed > 2.2) playTap(Math.min(speed / 8, 1));
-
-        if (other.label === "summit") {
-          const p = pebbles.find(item => item.body === pebble);
-          if (p && !p.scored) {
-            p.scored = true;
-            score++;
-            scoreEl.textContent = score;
-            playChime();
-          }
-        }
-      });
-    });
-
-    dropBtn.onclick = () => createPebble(width / 2 + (Math.random() - 0.5) * 100, 80);
-    windBtn.onclick = toggleWind;
-    resetBtn.onclick = reset;
-
-    canvas.addEventListener("pointerdown", e => {
-      const p = screenToWorld(e);
-      const hit = pebbles.some(item => {
-        const dx = item.body.position.x - p.x;
-        const dy = item.body.position.y - p.y;
-        return Math.sqrt(dx * dx + dy * dy) < item.radius * 2.4;
-      });
-
-      if (!hit) createPebble(p.x, p.y);
-    });
-
-    function resize() {
-      width = window.innerWidth;
-      height = window.innerHeight;
-
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = width + "px";
-      canvas.style.height = height + "px";
-
-      illo.zoom = Math.min(width, height) / 500;
-      makeWorldBounds();
-    }
-
-    window.addEventListener("resize", resize);
-
-    function updatePebbles() {
-      pebbles.forEach(p => {
-        const x = p.body.position.x - width / 2;
-        const y = p.body.position.y - height / 2;
-
-        p.zdog.translate.x = x;
-        p.zdog.translate.y = y;
-        p.zdog.translate.z = 210;
-        p.zdog.rotate.z = p.body.angle;
-        p.zdog.rotate.x = TAU / 4 + p.body.angle * 0.25;
-
-        if (p.body.position.y > height + 120) {
-          Body.setPosition(p.body, {
-            x: width / 2 + (Math.random() - 0.5) * 180,
-            y: 40
-          });
-          Body.setVelocity(p.body, { x: 0, y: 0 });
-          p.scored = false;
-        }
-      });
-    }
-
-    function loop() {
-      Engine.update(engine, 1000 / 60);
-      updatePebbles();
-      illo.updateRenderGraph();
-      requestAnimationFrame(loop);
-    }
-
-    resize();
-    createPebble(width / 2 - 35, 80);
-    createPebble(width / 2 + 35, 50);
-    loop();
-  </script>
+  <main class="app-shell">
+    <section class="hero-panel">
+      <div class="status-row">
+        <span class="status-dot"></span>
+        <span id="engine-status">Jive engine waking up…</span>
+      </div>
+
+      <section class="stage-card" aria-label="Companion stage">
+        <div id="companion-stage" class="companion-stage">
+          <div class="companion-placeholder">
+            <div class="companion-orb"></div>
+            <p>Raisin is not rendered yet.</p>
+            <span>Prompt 1 is engine-only.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="mood-card">
+        <p class="eyebrow">Current state</p>
+        <h1 id="current-emotion">Dormant</h1>
+        <p id="current-thought">
+          Waiting for the simulation loop to start.
+        </p>
+      </section>
+    </section>
+
+    <section class="debug-panel" aria-label="Jive engine debug panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Jive Core</p>
+          <h2>Behaviour Engine</h2>
+        </div>
+
+        <button id="tick-button" type="button">
+          Manual tick
+        </button>
+      </div>
+
+      <div class="metrics-grid">
+        <article class="metric-card">
+          <span>Energy</span>
+          <strong id="metric-energy">--</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Curiosity</span>
+          <strong id="metric-curiosity">--</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Affection</span>
+          <strong id="metric-affection">--</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Comfort</span>
+          <strong id="metric-comfort">--</strong>
+        </article>
+      </div>
+
+      <div class="log-card">
+        <div class="log-header">
+          <span>Event stream</span>
+          <button id="clear-log-button" type="button">
+            Clear
+          </button>
+        </div>
+
+        <ol id="event-log" class="event-log">
+          <li>Waiting for app.js…</li>
+        </ol>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
