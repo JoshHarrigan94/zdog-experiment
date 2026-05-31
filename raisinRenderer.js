@@ -3,7 +3,7 @@
   Raisin Zdog renderer v0.1
 
   Turns companion state into a simple living spaniel.
-*/
+*/ 
 
 (function () {
   "use strict";
