@@ -132,14 +132,75 @@ const renderer = new window.RaisinRenderer(companionStage);
     });
   });
 
-  companionStage.addEventListener("click", () => {
-    raisin.interact("pet");
-    pulseStage();
+    let pressTimer = null;
+  let pressStart = null;
+  let lastTapAt = 0;
+
+  function triggerInteraction(type) {
+  const labels = {
+    pet: "+ Affection",
+    play: "+ Playfulness",
+    comfort: "+ Comfort",
+    call: "Raisin noticed you",
+  };
+
+  raisin.interact(type);
+  pulseStage();
+  showFloatingFeedback(labels[type] || type);
+}
+
+  companionStage.addEventListener("pointerdown", (event) => {
+    pressStart = {
+      x: event.clientX,
+      y: event.clientY,
+      time: Date.now(),
+    };
+
+    pressTimer = window.setTimeout(() => {
+      triggerInteraction("comfort");
+      pressTimer = null;
+      pressStart = null;
+    }, 650);
   });
 
-  companionStage.addEventListener("dblclick", () => {
-    raisin.interact("play");
-    pulseStage();
+  companionStage.addEventListener("pointerup", (event) => {
+    if (!pressStart) return;
+
+    if (pressTimer) {
+      window.clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+
+    const dx = event.clientX - pressStart.x;
+    const dy = event.clientY - pressStart.y;
+    const distance = Math.hypot(dx, dy);
+    const now = Date.now();
+
+    if (distance > 55) {
+      triggerInteraction("call");
+      pressStart = null;
+      return;
+    }
+
+    if (now - lastTapAt < 320) {
+      triggerInteraction("play");
+      lastTapAt = 0;
+      pressStart = null;
+      return;
+    }
+
+    triggerInteraction("pet");
+    lastTapAt = now;
+    pressStart = null;
+  });
+
+  companionStage.addEventListener("pointercancel", () => {
+    if (pressTimer) {
+      window.clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+
+    pressStart = null;
   });
 
   window.addEventListener("keydown", (event) => {
